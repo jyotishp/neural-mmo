@@ -67,7 +67,8 @@ class Sword(Ascend):
       if backward and not self.config.TEST:
          rollouts, blobs = self.manager.step()
          optim.backward(rollouts, self.config)
-         #self.manager.inputs.clear()
+         #Testing not reusing stale data
+         self.manager.clearInputs()
          grads = self.net.grads()
 
       return packet, grads, blobs
