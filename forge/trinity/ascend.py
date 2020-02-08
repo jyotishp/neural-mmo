@@ -1,7 +1,17 @@
 from pdb import set_trace as T
+
 import ray, time
+import ray.experimental.signal as signal                                      
 
 from collections import defaultdict
+                                                                              
+class Packet(signal.Signal):                                                  
+   def __init__(self, key, value):                                                 
+      self.key   = key
+      self.value = value                                                      
+                                                                              
+   def get_value(self):                                                       
+      return self.value  
 
 class Timed:
    '''Performance timing superclass.
@@ -86,16 +96,29 @@ def runtime(func):
 class Ascend(Timed):
    '''This module is the Ascend core and only documents the internal API.
    External documentation is available at :mod:`forge.trinity.api`'''
-   def __init__(self, disciple, n, *args):
+   def __init__(self, config, idx):
       super().__init__()
-      self.remote    = Ascend.isRemote(disciple)
-      disciple       = Ascend.localize(disciple, self.remote)
-      self.disciples = [disciple(*args, idx) for idx in range(n)]
+      self.idx    = idx
 
-   def distribute(self, *args, shard=None):
+   def send(key, data):
+      packet = Packet(key, data)
+      signal.send(packet)
+
+   def recv(key, source, timeout=0.001):
+      packets = signal.receive(source, timeout)
+      packets  = [p[1].value for p in packets if p[1].key == key]
+      return packets
+
+   def init(disciple, config, n, *args):
+      remote   = Ascend.isRemote(disciple)
+      disciple = Ascend.localize(disciple, remote)
+      return [disciple(config, idx, *args) for idx in range(n)]
+
+   def distribute(disciples, *args, shard=None):
       arg, rets = args, []
-      for discIdx, disciple in enumerate(self.disciples):
-         step = Ascend.localize(disciple.step, self.remote)
+      for discIdx, disciple in enumerate(disciples):
+         remote = Ascend.isRemote(disciple)
+         step   = Ascend.localize(disciple.step, remote)
 
          arg = []
          for shardIdx, e in enumerate(args):
@@ -105,20 +128,22 @@ class Ascend(Timed):
                arg.append(e[discIdx])
             else:
                arg.append(e)
+
          arg = tuple(arg)
-                  
          rets.append(step(*arg))
+
       return rets
 
-   @waittime
-   def synchronize(self, rets):
-      if self.remote:
+   #@waittime
+   def synchronize(rets):
+      try:
          return ray.get(rets)
-      return rets
+      except:
+         return rets
 
-   def step(self, *args, shard=False):
-      rets = self.distribute(*args)
-      return self.synchronize(rets)
+   def step(disciples, *args, shard=False):
+      rets = Ascend.distribute(disciples, *args)
+      return Ascend.synchronize(rets)
 
    def discipleLogs(self):
       logs = []

@@ -1,7 +1,8 @@
 from pdb import set_trace as T
-
 import numpy as np
+
 import ray
+import ray.experimental.signal as signal
 
 from collections import defaultdict
 
@@ -52,7 +53,7 @@ class God(Ascend):
    128 agents, not thousands. However, we built with future scale in mind
    and invested in infrastructure early.''' 
 
-   def __init__(self, trinity, config, idx):
+   def __init__(self, config, idx):
       '''Initializes an environment and logging utilities
 
       Args:
@@ -60,7 +61,7 @@ class God(Ascend):
          config  : A Config object as shown in __main__
          idx     : Hardware index used to specify the game map
       '''
-      super().__init__(trinity.sword, config.NSWORD, trinity, config)
+      super().__init__(config, idx)
       self.nPop, self.ent       = config.NPOP, 0
       self.config, self.idx     = config, idx
       self.nUpdates, self.grads = 0, []
@@ -110,7 +111,7 @@ class God(Ascend):
 
       return self.backward
  
-   def distribute(self, weights):
+   def distribute(self):
       '''Shards input data across clients using the Ascend async API
 
       Args:
@@ -129,7 +130,9 @@ class God(Ascend):
       backward = self.batch(nUpdates)
 
       #Shard entities across clients
-      return super().distribute(clientData, weights, backward, shard=(1, 0, 0))
+      return Ascend.distribute(self.trinity.sword,
+            clientData, shard=[True])
+      #return super().distribute(clientData, shard=[True])
 
    def synchronize(self, rets):
       '''Aggregates output data across shards with the Ascend async API
@@ -141,19 +144,18 @@ class God(Ascend):
          atnDict: Dictionary of actions to be submitted to the environment
       '''
       atnDict, gradList, blobList = None, [], []
-      for obs, grads, blobs in super().synchronize(rets):
+      for obs in ray.get(rets):
          #Process outputs
          atnDict = IO.outputs(obs, atnDict)
 
          #Collect update
-         if self.backward:
+         if False and self.backward:
             self.grads.append(grads)
             self.blobs.add([blobs])
 
       return atnDict
 
-   @runtime
-   def step(self, recv):
+   def run(self, trinity):
       '''Sync weights and compute a model update by collecting
       a batch of trajectories from remote clients.
 
@@ -165,28 +167,23 @@ class God(Ascend):
          summary : A BlobSummary object logging agent statistics
          log     : Logging object for infrastructure timings
       '''
-      self.grads, self.blobs = [], BlobSummary()
-      while len(self.grads) == 0:
-         self.tick(recv)
-         recv = None
+      self.trinity = trinity
+      while True:
+         Ascend.send('GodLogs', self.env.logs())
+         self.tick()
 
-      #Aggregate updates and logs
-      grads = np.mean(self.grads, 0)
-      log   = Log.summary([
-                  self.discipleLogs(), 
-                  self.env.logs()])
-
-      return grads, self.blobs, log
-
-   def tick(self, recv=None):
+   def tick(self):
       '''Simulate a single server tick and all remote clients.
       The optional data packet specifies a new model parameter vector
 
       Args:
          recv: Upstream data from the cluster (in this case, a param vector)
       '''
+
       #Make decisions
-      actions = super().step(recv)
+      packet = self.distribute()
+      actions = self.synchronize(packet)
+      #actions = super().step()
 
       #Step the environment and all agents at once.
       #The environment handles action priotization etc.

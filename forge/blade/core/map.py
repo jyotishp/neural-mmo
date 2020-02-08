@@ -8,7 +8,7 @@ import os
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 from pytmx import TiledMap
 
-def loadTiled(config, fPath, tiles, nCounts):
+def loadTiled(config, fPath, idx, tiles, nCounts):
     tm = TiledMap(fPath)
     assert len(tm.layers) == 1
     layer = tm.layers[0]
@@ -17,7 +17,7 @@ def loadTiled(config, fPath, tiles, nCounts):
     for w, h, dat in layer.tiles():
        f = dat[0]
        tex = f.split('/')[-1].split('.')[0]
-       tilemap[h, w] = core.Tile(config, tiles[tex], h, w, nCounts, tex)
+       tilemap[h, w] = core.Tile(config, tiles[tex], idx, h, w, nCounts, tex)
     return tilemap
 
 class Map:
@@ -26,7 +26,7 @@ class Map:
       self.updateList = set()
       self.config = config
       self.nCounts = config.NPOP
-      self.genEnv(config.ROOT + str(idx) + config.SUFFIX)
+      self.genEnv(config.ROOT + str(idx) + config.SUFFIX, idx)
 
    def harvest(self, r, c):
       self.updateList.add(self.tiles[r, c])
@@ -67,8 +67,8 @@ class Map:
             self.tiles.ravel()]).reshape(*self.shape)
       return env
      
-   def genEnv(self, fName):
+   def genEnv(self, fName, idx):
       tiles = dict((mat.value.tex, mat.value) for mat in enums.Material)
-      self.tiles = loadTiled(self.config, fName, tiles, self.nCounts)
+      self.tiles = loadTiled(self.config, fName, idx, tiles, self.nCounts)
       self.shape = self.tiles.shape
        

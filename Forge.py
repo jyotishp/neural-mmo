@@ -21,15 +21,18 @@ infrastructure and IO code.'''
 
 #My favorite debugging macro
 from pdb import set_trace as T 
-
 import argparse
+
+import ray
+import ray.experimental.signal as signal
 
 from forge.blade import lib
 from forge.trinity import Trinity
 from forge.ethyr.torch import Model
+from forge.ethyr.torch.param import getParameters
 
 from experiments import Experiment, Config
-from projekt import Pantheon, God, Sword, Policy
+from projekt import Cluster, Pantheon, God, Sword, Policy
 
 def parseArgs(config):
    '''Processes command line arguments'''
@@ -45,12 +48,7 @@ def parseArgs(config):
    parser.add_argument('--load-exp', action="store_true",
          help='Loads saved json into visualizer with name specified by --name')
 
-   args               = parser.parse_args()
-   config.LOG         = args.log
-   config.LOAD_EXP    = args.load_exp
-   config.NAME        = args.name
-
-   return args
+   return parser.parse_args()
 
 def render(trinity, config, args):
    """Runs the environment with rendering enabled. To pull
@@ -92,7 +90,7 @@ if __name__ == '__main__':
    #Experiment + command line args specify configuration
    #Trinity specifies Cluster-Server-Core infra modules
    config  = Experiment('pop', Config).init()
-   trinity = Trinity(Pantheon, God, Sword)
+   trinity = Trinity(Cluster, Pantheon, God, Sword)
    args    = parseArgs(config)
 
    #Blocking call: switches execution to a
@@ -101,7 +99,6 @@ if __name__ == '__main__':
       render(trinity, config, args)
 
    #Train until AGI emerges
-   trinity.init(config, args)
+   trinity.init(config, args, Policy)
    while True:
-      log = trinity.step()
-      print(log)
+      pass

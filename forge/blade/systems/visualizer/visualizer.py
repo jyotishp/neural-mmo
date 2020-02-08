@@ -68,7 +68,7 @@ class MarketVisualizer:
         self.title       = config.TITLE
 
         self.ylabel      = config.YLABEL
-        self.x           = config.XAXIS
+        self.x           = 'tick'
         self.XAXIS       = config.XAXIS
         self.keys        = [self.x]
         self.scales      = config.SCALES
@@ -122,10 +122,10 @@ class MarketVisualizer:
                except EOFError as e:                                    
                   break 
 
-            self.data = parse.copy()
-            self.keys = list(self.data[self.scales[0]].keys())
-            self.keys.remove(self.x)
-            self.keys = [k for k in self.keys if k[-5:] != 'upper' and k[-5:] != 'lower']
+            #self.data = parse.copy()
+            #self.keys = list(self.data[self.scales[0]].keys())
+            #self.keys.remove(self.x)
+            #self.keys = [k for k in self.keys if k[-5:] != 'upper' and k[-5:] != 'lower']
 
             data = np.load('lifetime.npy', allow_pickle=True).tolist()
             self.keys = list(data.keys())

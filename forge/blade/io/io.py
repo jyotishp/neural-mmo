@@ -33,6 +33,8 @@ class AtnData:
 class ArgsData:
    def __init__(self):
       self.arguments = defaultdict(list)
+      self.idxs = {}
+      self.args = {}
 ### End Internal IO Packet Objects ###
 
 class IOPacket:
@@ -54,8 +56,8 @@ class IOPacket:
          self.lookup.add(serial, orig=atn)
 
    def key(self, env, ent, reward, config):
-      annID, entID = ent.annID, ent.entID
-      key = (annID, entID)
+      annID, entID, realmID = ent.annID, ent.entID, ent.realmID
+      key = (annID, entID, realmID)
       self.keys.append(key)
       self.rewards.append(reward)
 
@@ -186,9 +188,9 @@ class IO:
       #Reverse format lookup over actions
       names = list(obs.obs.names.keys())
       for atn, action in obs.atn.actions.items():
-         for arg, atnsIdx in action.arguments.items():
+         for arg, atnsIdx in action.args.items():
             for idx, a in enumerate(atnsIdx):
-               _, entID, _ = names[idx]
+               _, entID, _, _ = names[idx]
                a = obs.lookup.reverse(a)
                atnDict[entID][atn].append(a)
 

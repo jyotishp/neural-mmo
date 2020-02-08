@@ -3,11 +3,13 @@ from pdb import set_trace as T
 import os
 
 from forge.blade import lib
+from forge.blade.lib.log import Quill, BlobSummary
+
 from forge.trinity.ascend import Ascend, runtime, waittime, Log
 from forge.trinity.timed import Summary
 
 class Trinity():
-   def __init__(self, pantheon, god, sword):
+   def __init__(self, cluster, pantheon, god, sword):
       '''Pantheon-God-Sword (Cluster-Server-Core) infra 
 
       Trinity is three layer distributed infra design pattern for generic, 
@@ -36,11 +38,12 @@ class Trinity():
          broadcast-reduce to OpenAI's Rapid to our  MMO style communications
          using Ascend + Trinity with relatively little code and testing.
       '''
+      self.cluster  = cluster
       self.pantheon = pantheon
       self.god      = god
       self.sword    = sword
 
-   def init(self, config, args):
+   def init(self, config, args, policy):
       '''
       Instantiates a Pantheon object to make Trinity runnable. Separated
       from __init__ to make Trinity usable as a stuct to hold Pantheon, 
@@ -54,8 +57,25 @@ class Trinity():
          self: A self reference
       '''
       lib.ray.init(config, args.ray)
-      self.cluster = self.pantheon(self, config, 1)
-      self.config  = config
+      self.quill = Quill(config)
+
+      self.config   = config
+      self.cluster  = self.cluster.remote(config, policy)
+      self.pantheon = Ascend.init(self.pantheon, config, config.NPANTHEON)
+      self.god      = Ascend.init(self.god, config, config.NGOD)
+      self.sword    = Ascend.init(self.sword, config, config.NSWORD)
+
+      #Sync model to rollout workers
+      workers = [self.cluster] + self.pantheon + self.god + self.sword
+      for w in workers:
+         w.run.remote(self) 
+
+      #Ascend.step(self.pantheon) # -> optimize model
+      #Ascend.step(self.god)      # -> communicate obs to Sword
+      #Ascend.step(self.sword)    # -> sync experience to Pantheon
+   
+      
+
       return self
 
    def step(self):
@@ -64,10 +84,15 @@ class Trinity():
       Returns:
          txt: Logging string
       '''
-      save, stats, log = self.cluster.step()
+      #blobs = BlobSummary().add(blobs)                                        
+      #Update/checkpoint model and write logs                                 
+      #stats, lifetime = self.quill.scrawl(blobs)  
 
-      log   = Log.summary([self.cluster.discipleLogs(), 
-            *log, self.cluster.logs()])
+      cluster          = self.pantheon[0]
+      save, stats, log = cluster.step()
+
+      log   = Log.summary([cluster.discipleLogs(), 
+            *log, cluster.logs()])
       log   = str(Summary(log))
 
       #Write stats to txt file

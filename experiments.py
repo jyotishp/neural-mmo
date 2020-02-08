@@ -26,11 +26,12 @@ class Config(config.Config):
    TEST      = False            #Update the model during run?
 
    ###############################Distributed infrastructure config
-   NGOD    = 12                 #Number of environment servers
-   NSWORD  = 1                  #Number of clients per server
-   NCORE   = NGOD*(NSWORD + 1)  #Total number of cores
+   NPANTHEON = 1                #Number of optimizers
+   NGOD      = 1                #Number of environment servers
+   NSWORD    = 1                #Number of clients per server
+   NCORE     = 12               #Number of cores per machine
 
-   _ = 16384
+   _ = 256
    CLUSTER_UPDATES = _          #Number of samples per optim
    SERVER_UPDATES  = _ // NGOD  #step at each hardware layer
 

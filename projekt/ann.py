@@ -1,6 +1,7 @@
 '''Policy submodules and a baseline agent.'''
 from pdb import set_trace as T
 
+import time
 import numpy as np
 from collections import defaultdict
 
@@ -51,6 +52,7 @@ class Policy(nn.Module):
          config: A Configuration object
       '''
       super().__init__()
+      self.device = config.DEVICE
       self.config = config
 
       self.IO     = baseline.IO(config)
@@ -69,14 +71,24 @@ class Policy(nn.Module):
       #Some shards may not always have data
       if packet.obs.n == 0: return
 
+      t = time.time()
+
       #Run the input network
       observationTensor, entityLookup = self.IO.input(packet)
+      t = time.time() - t
+      #print('Input: ', t)
 
+      t = time.time()
       #Run the main hidden network with unshared population and value weights
       hidden, values = self.hidden(packet, observationTensor)
+      t = time.time() - t
+      #print('Hidden: ', t)
 
+      t = time.time()
       #Run the output network
       self.IO.output(packet, hidden, entityLookup, values,  manager)
+      t = time.time() - t
+      #print('Output: ', t)
 
    def hidden(self, packet, state):
       '''Population-specific hidden network and value function
@@ -97,8 +109,13 @@ class Policy(nn.Module):
             lambda key: key[0])
 
       #Initialize output buffers
-      hidden = torch.zeros((packet.obs.n, self.config.HIDDEN))
-      values = torch.zeros((packet.obs.n, 1))
+      hidden = torch.zeros(
+            (packet.obs.n, self.config.HIDDEN),
+            device=self.device)
+
+      values = torch.zeros(
+            (packet.obs.n, 1),
+            device=self.device)
 
       #Per-population policies rearranged in input order
       for pop in groups:

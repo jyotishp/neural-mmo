@@ -1,13 +1,23 @@
 from pdb import set_trace as T
 
+import ray
+import ray.experimental.signal as signal
+
 from collections import defaultdict
 
+from forge.blade.lib.log import BlobSummary
+
 from forge.ethyr.torch import Model
-from forge.blade.lib.log import Quill, BlobSummary
-from forge.trinity.ascend import Ascend, runtime
+from forge.trinity.ascend import Ascend, Packet, runtime, waittime
+
+from forge.ethyr.experience import Rollout, RolloutManager
+
+from forge.ethyr.torch import optim
+from forge.ethyr.torch.param import getParameters, setParameters
 
 import projekt
 
+@ray.remote
 class Pantheon(Ascend):
    '''Cluster level infrastructure layer
 
@@ -17,7 +27,7 @@ class Pantheon(Ascend):
    It also demonstrates logging and snapshotting functionality 
    through the Quill and Model libraries, respectively.'''
 
-   def __init__(self, trinity, config, idx):
+   def __init__(self, config, idx):
       '''Initializes a copy of the model, which keeps
       track of the weights for the optimizer.
 
@@ -26,12 +36,32 @@ class Pantheon(Ascend):
          config  : A Config object as shown in __main__
          idx     : Unused hardware index
       '''
-      super().__init__(trinity.god, config.NGOD, trinity, config)
-      self.quill  = Quill(config)
-      self.config = config
+      super().__init__(config, idx)
+      self.config   = config
+      self.rollouts = {}                                                      
 
-      self.net = Model(projekt.Policy, config)
-      self.net.printParams()
+      device       = config.DEVICE
+      self.net     = projekt.Policy(config).to(device)
+      self.manager = RolloutManager(config)
+
+   def sendGrads(self):
+      grads  = self.net.grads() 
+      Ascend.send('Gradients', grads)
+
+   def recvModel(self):
+      packets = Ascend.recv('Model', [self.trinity.cluster])
+      if len(packets) > 0:
+         weights = packets[-1]
+         setParameters(self.net, weights)
+
+   @waittime
+   def recvExperience(self):
+      return Ascend.recv('Experience', self.trinity.sword, timeout=None)
+
+   def run(self, trinity):
+      self.trinity = trinity
+      while True:
+         self.step()
 
    @runtime
    def step(self):
@@ -43,13 +73,22 @@ class Pantheon(Ascend):
          stats : Log message describing data collected
          log   : Dictionary of logs containing infrastructure usage data
       ''' 
-      #Aggregate Blob logs as a BlobSummary
-      recvs             = super().step(self.net.weights)
-      recvs, blobs, log = list(zip(*recvs))
-      blobs = BlobSummary().add(blobs)
+      self.recvModel()
+      
+      for packet in self.recvExperience():
+         self.manager.collectInputs(packet)
+         self.net(packet, self.manager)
+         rollouts, _ = self.manager.step()
 
-      #Update/checkpoint model and write logs
-      stats, lifetime = self.quill.scrawl(blobs)
-      perf            = self.net.step(recvs, blobs, log, lifetime)
+         for k, rollout in rollouts.items():
+            assert k not in self.rollouts
+            self.rollouts[k] = rollout
 
-      return perf, stats, log
+      if len(self.rollouts) > 8:
+         rollouts      = self.rollouts
+         self.rollouts = {}
+
+         optim.backward(rollouts, self.config)                                
+         self.sendGrads()
+
+         Ascend.send('PantheonLogs', self.logs())

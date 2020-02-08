@@ -13,7 +13,7 @@ class Serial:
    Format: World, Tick, key.serial[0], key.serial[1], key type'''
 
    #Length of serial key tuple
-   KEYLEN = 3
+   KEYLEN = 4
 
    def key(key):
       '''Convert a game object to a unique key'''
@@ -28,9 +28,11 @@ class Serial:
 
    def nontemporal(key):
       '''Get the time independent part of a key'''
+      T()
       return tuple(key[:1]) + tuple(key[2:])
 
    def population(key):
       '''Get the population component of a nontemporal entity key'''
+      T()
       return key[1]
 

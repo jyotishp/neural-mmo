@@ -80,17 +80,16 @@ def backward(rollouts, config):
 
       l, v, e = loss.PG(atns, idxs, vals, rets)
 
-      #Averaging results in no learning. Need to retune LR?
-      pgLoss  += l# / n
-      valLoss += v# / n
-      entLoss += e# / n
+      pgLoss  += l
+      valLoss += v
+      entLoss += e
 
    totLoss = (
          config.PG_WEIGHT*pgLoss + 
          config.VAL_WEIGHT*valLoss + 
          config.ENTROPY*entLoss)
 
-   totLoss.backward()#retain_graph=True)
+   totLoss.backward(retain_graph=True)
 
    return pgLoss, valLoss, entLoss
 

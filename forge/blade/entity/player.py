@@ -133,12 +133,13 @@ class Status(StimHook):
 
 class Player():
    SERIAL = 0
-   def __init__(self, config, iden, pop, name='', color=None):
+   def __init__(self, config, iden, pop, env, name='', color=None):
       self.config = config
 
       #Identifiers
-      self.entID = iden 
-      self.annID = pop
+      self.entID   = iden 
+      self.annID   = pop
+      self.realmID = env
 
       #Submodules
       self.base      = Base(config, iden, pop, name, color)
@@ -170,7 +171,7 @@ class Player():
 
    @property
    def serial(self):
-      return self.annID, self.entID
+      return self.annID, self.entID, self.realmID
  
    def packet(self):
       data = {}

@@ -55,7 +55,7 @@ class Spawner:
       self.ents      += 1
 
       color = self.palette.colors[pop]
-      ent   = entity.Player(self.config, iden, pop, name, color)
+      ent   = entity.Player(self.config, iden, pop, realm.idx, name, color)
       assert ent not in realm.desciples
 
       r, c = ent.base.pos
@@ -94,6 +94,7 @@ class Realm(Timed):
 
       self.entID     = 1
       self.tick      = 0
+      self.idx       = idx
 
    ###################################################################
    ### Internal API (+ constructor) documented at forge.blade.core.api

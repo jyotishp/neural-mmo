@@ -59,7 +59,7 @@ class Rollout:
          self.rewards.append(reward)
 
       if self.blob is None:
-         annID, entID = key
+         annID, entID, realmID = key
          self.blob = Blob(entID, annID)
 
       self.time += 1
