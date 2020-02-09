@@ -3,13 +3,13 @@ from pdb import set_trace as T
 import os
 
 from forge.blade import lib
-from forge.blade.lib.log import Quill, BlobSummary
+#from forge.blade.lib.log import BlobSummary
 
 from forge.trinity.ascend import Ascend, runtime, waittime, Log
 from forge.trinity.timed import Summary
 
 class Trinity():
-   def __init__(self, cluster, pantheon, god, sword):
+   def __init__(self, cluster, pantheon, god, sword, quill):
       '''Pantheon-God-Sword (Cluster-Server-Core) infra 
 
       Trinity is three layer distributed infra design pattern for generic, 
@@ -39,6 +39,8 @@ class Trinity():
          using Ascend + Trinity with relatively little code and testing.
       '''
       self.cluster  = cluster
+      self.quill    = quill
+
       self.pantheon = pantheon
       self.god      = god
       self.sword    = sword
@@ -57,16 +59,30 @@ class Trinity():
          self: A self reference
       '''
       lib.ray.init(config, args.ray)
-      self.quill = Quill(config)
-
       self.config   = config
+
+      #Logging and cluster management
+      self.quill    = self.quill.remote(config)
       self.cluster  = self.cluster.remote(config, policy)
-      self.pantheon = Ascend.init(self.pantheon, config, config.NPANTHEON)
-      self.god      = Ascend.init(self.god, config, config.NGOD)
-      self.sword    = Ascend.init(self.sword, config, config.NSWORD)
+
+      ###Remote trinity workers
+      self.pantheon = Ascend.init(
+            self.pantheon,
+            config,
+            config.NPANTHEON)
+      self.god = Ascend.init(
+            self.god,
+            config,
+            config.NGOD)
+      self.sword = Ascend.init(
+            self.sword,
+            config,
+            config.NSWORD)
 
       #Sync model to rollout workers
-      workers = [self.cluster] + self.pantheon + self.god + self.sword
+      workers = [self.cluster, self.quill]
+      workers += self.pantheon + self.god + self.sword
+
       for w in workers:
          w.run.remote(self) 
 
@@ -74,8 +90,6 @@ class Trinity():
       #Ascend.step(self.god)      # -> communicate obs to Sword
       #Ascend.step(self.sword)    # -> sync experience to Pantheon
    
-      
-
       return self
 
    def step(self):

@@ -27,6 +27,9 @@ import ray
 import ray.experimental.signal as signal
 
 from forge.blade import lib
+from forge.blade.core import Realm
+from forge.blade.lib.log import TestQuill
+
 from forge.trinity import Trinity
 from forge.ethyr.torch import Model
 from forge.ethyr.torch.param import getParameters
@@ -90,8 +93,11 @@ if __name__ == '__main__':
    #Experiment + command line args specify configuration
    #Trinity specifies Cluster-Server-Core infra modules
    config  = Experiment('pop', Config).init()
-   trinity = Trinity(Cluster, Pantheon, God, Sword)
+   #env = Realm(config)
+   #env.reset()
+   trinity = Trinity(Cluster, Pantheon, God, Sword, TestQuill)
    args    = parseArgs(config)
+
 
    #Blocking call: switches execution to a
    #Web Socket Server module

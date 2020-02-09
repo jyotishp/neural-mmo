@@ -56,4 +56,4 @@ class Cluster:
             perf = self.model.step(grads, [], [], 0.0)
             self.sendModel()
 
-         self.logs()
+         #self.logs()

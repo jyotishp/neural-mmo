@@ -91,4 +91,4 @@ class Pantheon(Ascend):
          optim.backward(rollouts, self.config)                                
          self.sendGrads()
 
-         Ascend.send('PantheonLogs', self.logs())
+         Ascend.send('Logs', self.logs())

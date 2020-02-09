@@ -169,7 +169,8 @@ class God(Ascend):
       '''
       self.trinity = trinity
       while True:
-         Ascend.send('GodLogs', self.env.logs())
+         Ascend.send('Utilization', self.env.logs())
+         Ascend.send('Logs', self.envlogs())
          self.tick()
 
    def tick(self):
@@ -188,3 +189,9 @@ class God(Ascend):
       #Step the environment and all agents at once.
       #The environment handles action priotization etc.
       self.obs, self.rewards, self.dones, _ = self.env.step(actions)
+
+   def envlogs(self):
+      logs = {'nEnt': len(self.env.desciples), 'lifetime': []}
+      for entID, ent in self.env.desciples.items():
+         logs['lifetime'].append(ent.history.timeAlive.val)
+      return logs

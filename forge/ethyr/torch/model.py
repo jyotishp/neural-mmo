@@ -28,7 +28,7 @@ class GradientOptimizer:
          gradList: a list of gradients
       '''
       grads = np.mean(grads, 0)
-      print('Gradient magnitude: ', np.sqrt(np.sum(grads**2)))
+      #print('Gradient magnitude: ', np.sqrt(np.sum(grads**2)))
       mag = self.config.GRAD_CLIP
       grads = np.clip(grads, -mag, mag)
 
