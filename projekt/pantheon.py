@@ -62,6 +62,7 @@ class Pantheon(Ascend):
       self.trinity = trinity
       while True:
          self.step()
+         Ascend.send('Utilization', self.logs())
 
    @runtime
    def step(self):
@@ -90,5 +91,3 @@ class Pantheon(Ascend):
 
          optim.backward(rollouts, self.config)                                
          self.sendGrads()
-
-         Ascend.send('Logs', self.logs())

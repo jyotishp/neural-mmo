@@ -80,7 +80,8 @@ class Trinity():
             config.NSWORD)
 
       #Sync model to rollout workers
-      workers = [self.cluster, self.quill]
+      workers = [self.cluster]
+      self.quill.init.remote(self)
       workers += self.pantheon + self.god + self.sword
 
       for w in workers:

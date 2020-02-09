@@ -16,11 +16,14 @@ from forge.trinity.ascend import Ascend
 from forge.blade.systems import visualizer
 
 class Bar(tqdm):
-   def __init__(self, position=0, title='title'):
+   def __init__(self, position=0, title='title', form=None):
       lbar = '{desc}: {percentage:3.0f}%|'
       bar = '{bar}'
       rbar  = '| [{elapsed}, ' '{rate_fmt}{postfix}]'
       fmt = ''.join([lbar, bar, rbar])
+
+      if form is not None:
+         fmt = form
 
       super().__init__(
             total=100,
@@ -30,7 +33,7 @@ class Bar(tqdm):
       self.title(title)
 
    def percent(self, val):
-      self.update(val - self.n)
+      self.update(100*val - self.n)
 
    def title(self, txt):
       self.set_description(txt)
@@ -148,22 +151,49 @@ class Blob:
 class TestQuill:
    def __init__(self, config):
       self.config = config
-      self.pantheon = Bar(title='Pantheon', position=0)
-      self.god      = Bar(title='God', position=1)
-      self.sword    = Bar(title='Sword', position=2)
+      self.pantheon = Bar(title='             Pantheon', position=0)
+      self.god      = Bar(title='             God     ', position=1)
+      self.sword    = Bar(title='             Sword   ', position=2)
 
    def run(self, trinity):
       self.trinity = trinity 
       while True:
          self.step()
 
-   def step(self):
-      pantheonLogs = Ascend.recv('Logs', self.trinity.pantheon)
-      godLogs      = Ascend.recv('Logs', self.trinity.god)
-      swordLogs    = Ascend.recv('Logs', self.trinity.sword)
+   def percent(utilization):
+      run, wait = self.log(utilization)
+      if run == 0:
+         percent = 0
+      else:
+         percent = run / (run + wait) 
 
-      run, wait = self.log(pantheonLogs)
-      #print('Pantheon - Run: ', run, ', Wait: ', wait)
+   def init(self, trinity):
+      self.trinity = trinity
+
+   def log(self, logs):
+      if len(logs) == 0:
+         return 0
+
+      runs, waits = [], []
+      for log in logs:
+         for k, v in log.items():
+            runs.append(v.run)
+            waits.append(v.wait)
+
+      run  = np.mean(runs)
+      wait = np.mean(waits)
+
+      if run == 0:
+         percent = 0
+      else:
+         percent = run / (run + wait)
+
+      return percent
+
+   def step(self):
+      #pantheonLogs = Ascend.recv('Logs', self.trinity.pantheon)
+      godLogs      = Ascend.recv('Logs', self.trinity.god)
+      #swordLogs    = Ascend.recv('Logs', self.trinity.sword)
 
       #run, wait = self.log(godLogs)
       #print('God - Run: ', run, ', Wait: ', wait) 
@@ -173,30 +203,31 @@ class TestQuill:
          lifetime += log['lifetime']
          nEnt.append(log['nEnt'])
 
-      lifetime = np.mean(lifetime)
-      nEnt     = np.mean(nEnt)
+      if len(lifetime) == 0:
+         lifetime = 0
+      else: 
+         lifetime = np.mean(lifetime)
 
-      #print('God - Lifetime: ', lifetime, ', Population: ', nEnt)
-      #self.pantheon.set()
-      self.god.percent(lifetime)
-      #self.sword.set()
-         
-
-   def log(self, logs):
-      if len(logs) > 0:
-         runs, waits = [], []
-         for log in logs:
-            for k, v in log.items():
-               runs.append(v.run)
-               waits.append(v.wait)
-
-         run  = np.mean(runs)
-         wait = np.mean(waits)
+      if len(nEnt) == 0:
+         nEnt = 0
       else:
-         run = wait = 0
+         nEnt     = np.mean(nEnt)
 
-      return run, wait
+      data = {}
 
+      logs = Ascend.recv('Utilization', self.trinity.pantheon)
+      data['Pantheon'] = self.log(logs)
+      
+      logs = Ascend.recv('Utilization', self.trinity.god)
+      data['God'] = self.log(logs)
+
+      logs = Ascend.recv('Utilization', self.trinity.sword)
+      data['Sword'] = self.log(logs)
+
+      if lifetime > 0:
+         data['Performance'] = 'Lifetime: ' + str(lifetime) + ', Population: ' + str(nEnt)
+ 
+      return data
 
 class Quill:
    def __init__(self, config):

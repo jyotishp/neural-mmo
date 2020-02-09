@@ -22,13 +22,14 @@ infrastructure and IO code.'''
 #My favorite debugging macro
 from pdb import set_trace as T 
 import argparse
+import numpy as np
 
 import ray
 import ray.experimental.signal as signal
 
 from forge.blade import lib
 from forge.blade.core import Realm
-from forge.blade.lib.log import TestQuill
+from forge.blade.lib.log import TestQuill, Bar
 
 from forge.trinity import Trinity
 from forge.ethyr.torch import Model
@@ -89,6 +90,28 @@ def render(trinity, config, args):
    from forge.embyr.twistedserver import Application
    Application(env, god.tick.remote)
 
+class LogBars:
+   def __init__(self):
+      self.pantheon = Bar(title='Pantheon', position=0)
+      self.god      = Bar(title='God     ', position=1)
+      self.sword    = Bar(title='Sword   ', position=2)
+      self.perf     = Bar(title='Performance', position=3, form='{desc}')
+
+   def log(self, percent, bar):
+      bar.refresh()
+      if percent != 0:
+         bar.percent(percent)
+
+   def step(self, packet):
+      #Ascend.clear()
+      self.log(packet['Pantheon'], self.pantheon)
+      self.log(packet['God'], self.god)
+      self.log(packet['Sword'], self.sword)
+
+      if 'Performance' in packet:
+         self.perf.title(packet['Performance'])
+
+
 if __name__ == '__main__':
    #Experiment + command line args specify configuration
    #Trinity specifies Cluster-Server-Core infra modules
@@ -97,6 +120,8 @@ if __name__ == '__main__':
    #env.reset()
    trinity = Trinity(Cluster, Pantheon, God, Sword, TestQuill)
    args    = parseArgs(config)
+
+   bars = LogBars()
 
 
    #Blocking call: switches execution to a
@@ -107,4 +132,8 @@ if __name__ == '__main__':
    #Train until AGI emerges
    trinity.init(config, args, Policy)
    while True:
-      pass
+      packet = trinity.quill.step.remote()
+      packet = ray.get(packet)
+      bars.step(packet)
+
+

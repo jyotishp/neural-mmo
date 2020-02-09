@@ -9,7 +9,7 @@ from collections import defaultdict
 from forge.blade import core
 from forge.blade.lib.log import BlobSummary 
 
-from forge.trinity.ascend import Ascend, runtime, Log
+from forge.trinity.ascend import Ascend, runtime, waittime, Log
 from forge.blade import IO
 
 import projekt
@@ -134,6 +134,10 @@ class God(Ascend):
             clientData, shard=[True])
       #return super().distribute(clientData, shard=[True])
 
+   @waittime
+   def sync(self, rets):
+      return ray.get(rets)
+
    def synchronize(self, rets):
       '''Aggregates output data across shards with the Ascend async API
 
@@ -144,7 +148,7 @@ class God(Ascend):
          atnDict: Dictionary of actions to be submitted to the environment
       '''
       atnDict, gradList, blobList = None, [], []
-      for obs in ray.get(rets):
+      for obs in self.sync(rets):
          #Process outputs
          atnDict = IO.outputs(obs, atnDict)
 
@@ -169,10 +173,12 @@ class God(Ascend):
       '''
       self.trinity = trinity
       while True:
-         Ascend.send('Utilization', self.env.logs())
+         #Ascend.send('Utilization', self.env.logs())
+         Ascend.send('Utilization', self.logs())
          Ascend.send('Logs', self.envlogs())
          self.tick()
 
+   @runtime
    def tick(self):
       '''Simulate a single server tick and all remote clients.
       The optional data packet specifies a new model parameter vector

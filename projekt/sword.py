@@ -4,7 +4,7 @@ from copy import deepcopy
 import ray
 import ray.experimental.signal as signal
 
-from forge.trinity.ascend import Ascend, runtime
+from forge.trinity.ascend import Ascend, runtime, waittime
 
 from forge.ethyr.experience import RolloutManager
 from forge.ethyr.torch.param import setParameters
@@ -51,6 +51,10 @@ class Sword(Ascend):
       self.trinity = trinity
       self.recvModel(timeout=None)
 
+   @waittime
+   def sync(self, packet):
+      Ascend.send('Experience', packet)
+
    @runtime
    def step(self, packet):
       '''Synchronizes weights from upstream; computes
@@ -69,7 +73,9 @@ class Sword(Ascend):
       self.net(packet, None)
 
       #Send experience and logs
-      Ascend.send('Experience', packet)
+      self.sync(packet)
+
+      Ascend.send('Utilization', self.logs())
 
       return packet
 

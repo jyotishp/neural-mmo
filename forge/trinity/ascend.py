@@ -3,6 +3,7 @@ from pdb import set_trace as T
 import ray, time
 import ray.experimental.signal as signal                                      
 
+import os
 from collections import defaultdict
                                                                               
 class Packet(signal.Signal):                                                  
@@ -99,6 +100,10 @@ class Ascend(Timed):
    def __init__(self, config, idx):
       super().__init__()
       self.idx    = idx
+
+   @staticmethod
+   def clear():
+      os.system('clear')
 
    def send(key, data):
       packet = Packet(key, data)
