@@ -26,6 +26,7 @@ class Spawner:
       self.popSz  = self.nEnt // self.nPop
       self.config = config
 
+      self.entLogs = {}
       self.ents = 0
       self.pops = defaultdict(int)
       self.palette = Palette(self.nPop)
@@ -153,6 +154,9 @@ class Realm(Timed):
 
       return packet
 
+   def entLog(self):
+      return self.entLogs
+
    def act(self, actions):
       '''Execute agent actions
       
@@ -246,14 +250,18 @@ class Realm(Timed):
       Args: 
          dead: A list of dead agent IDs to remove
       '''
+      logs = set()
       for entID in dead:
          ent  = self.desciples[entID]
          r, c = ent.base.pos
 
          self.world.env.tiles[r, c].delEnt(entID)
          self.spawner.cull(ent.annID)
+         logs.add(ent.log())
 
          del self.desciples[entID]
+      
+      self.entLogs = logs
 
    def getStims(self, packets):
       '''Gets agent stimuli from the environment

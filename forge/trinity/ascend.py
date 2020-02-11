@@ -101,18 +101,25 @@ class Ascend(Timed):
       super().__init__()
       self.idx    = idx
 
-   @staticmethod
-   def clear():
-      os.system('clear')
+   #@staticmethod
+   #def clear():
+   #   os.system('clear')
 
    def send(key, data):
       packet = Packet(key, data)
       signal.send(packet)
 
-   def recv(key, source, timeout=0.001):
+   def recv(source, key=None, timeout=0.001):
       packets = signal.receive(source, timeout)
-      packets  = [p[1].value for p in packets if p[1].key == key]
-      return packets
+      ret = defaultdict(list) 
+      for p in packets:
+         p = p[1]
+         assert type(p) != signal.ErrorSignal, p.error
+         ret[p.key].append(p.value)
+
+      if key is None:
+         return ret
+      return ret[key]
 
    def init(disciple, config, n, *args):
       remote   = Ascend.isRemote(disciple)
@@ -139,8 +146,8 @@ class Ascend(Timed):
 
       return rets
 
-   #@waittime
-   def synchronize(rets):
+   @waittime
+   def synchronize(self, rets):
       try:
          return ray.get(rets)
       except:

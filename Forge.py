@@ -23,6 +23,7 @@ infrastructure and IO code.'''
 from pdb import set_trace as T 
 import argparse
 import numpy as np
+import time
 
 import ray
 import ray.experimental.signal as signal
@@ -92,10 +93,15 @@ def render(trinity, config, args):
 
 class LogBars:
    def __init__(self):
-      self.pantheon = Bar(title='Pantheon', position=0)
-      self.god      = Bar(title='God     ', position=1)
-      self.sword    = Bar(title='Sword   ', position=2)
-      self.perf     = Bar(title='Performance', position=3, form='{desc}')
+      self.perf     = Bar(title='', position=0,
+            form='[Elapsed: {elapsed}] {desc}')
+      self.pantheon = Bar(title='Pantheon', position=1)
+      self.god      = Bar(title='God     ', position=2)
+      self.sword    = Bar(title='Sword   ', position=3)
+
+      self.len      = 0
+      self.pos      = 4
+      self.stats    = {}
 
    def log(self, percent, bar):
       bar.refresh()
@@ -103,21 +109,34 @@ class LogBars:
          bar.percent(percent)
 
    def step(self, packet):
-      #Ascend.clear()
       self.log(packet['Pantheon'], self.pantheon)
       self.log(packet['God'], self.god)
       self.log(packet['Sword'], self.sword)
 
       if 'Performance' in packet:
-         self.perf.title(packet['Performance'])
+         data                      = packet['Performance']
+         epochs, rollouts, updates = packet['Updates']
+
+         self.perf.title('Epochs: {}, Rollouts: {}, Updates: {}'.format(
+               epochs, rollouts, updates))
+
+         for k, v in data.items():
+            self.len = max(self.len, len(k))
+            if k not in self.stats:
+               self.stats[k] = Bar(title='', position=self.pos, form='{desc}')
+               self.pos += 1
+
+            bar = self.stats[k]
+            l = str(self.len)
+            bar.title(
+                  ('   {: <'+l+'}: {:.2f}<{:.2f}'
+                  ).format(k.capitalize(), v.val, v.max))
 
 
 if __name__ == '__main__':
    #Experiment + command line args specify configuration
    #Trinity specifies Cluster-Server-Core infra modules
    config  = Experiment('pop', Config).init()
-   #env = Realm(config)
-   #env.reset()
    trinity = Trinity(Cluster, Pantheon, God, Sword, TestQuill)
    args    = parseArgs(config)
 

@@ -64,7 +64,7 @@ class RolloutManager:
          rollout.finish()
          del self.inputs[key]
 
-         self.logs.add([rollout.blob])
+         #self.logs.add([rollout.blob])
 
       #Update inputs 
       for key, reward in zip(stims.keys, stims.rewards):

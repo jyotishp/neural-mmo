@@ -41,7 +41,7 @@ class Sword(Ascend):
 
    def recvModel(self, timeout=0):
       #Receive weight packets
-      packet = Ascend.recv('Model', [self.trinity.cluster], timeout)
+      packet = Ascend.recv([self.trinity.cluster], 'Model', timeout)
 
       #Sync model weights; batch obs; compute forward pass
       if packet is not None:

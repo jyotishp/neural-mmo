@@ -50,7 +50,7 @@ class Cluster:
       self.trinity = trinity
       self.sendModel()
       while True:
-         grads = Ascend.recv('Gradients', self.trinity.pantheon)
+         grads = Ascend.recv(self.trinity.pantheon, 'Gradients')
 
          if len(grads) > 0:                                                   
             perf = self.model.step(grads, [], [], 0.0)

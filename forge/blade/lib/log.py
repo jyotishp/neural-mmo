@@ -15,11 +15,16 @@ from tqdm import tqdm
 from forge.trinity.ascend import Ascend
 from forge.blade.systems import visualizer
 
+class Stat:
+   def __init__(self):
+      self.val = 0
+      self.max = 0
+
 class Bar(tqdm):
    def __init__(self, position=0, title='title', form=None):
       lbar = '{desc}: {percentage:3.0f}%|'
       bar = '{bar}'
-      rbar  = '| [{elapsed}, ' '{rate_fmt}{postfix}]'
+      rbar  = '| [' '{rate_fmt}{postfix}]'
       fmt = ''.join([lbar, bar, rbar])
 
       if form is not None:
@@ -36,15 +41,8 @@ class Bar(tqdm):
       self.update(100*val - self.n)
 
    def title(self, txt):
-      self.set_description(txt)
-
-   def set(self,):
-      tags = 'a b c d'.split()
-      i = np.random.randint(4)
-      util = 100*np.random.rand()
-
-      self.percent(util)
-      self.title(tags[i])
+      self.desc = txt
+      self.refresh()
 
 class Logger:                                                                 
    def __init__(self, middleman):                                             
@@ -123,37 +121,21 @@ class BlobSummary:
 
 #Agent logger
 class Blob:
-   def __init__(self, entID, annID): 
-      self.lifetime = 0
-      self.reward   = [] 
-      self.value    = []
+   def __init__(self, entID, annID, lifetime, exploration): 
+      self.exploration = exploration
+      self.lifetime    = lifetime
 
       self.entID = entID 
       self.annID = annID
 
-   def inputs(self, reward):
-      if reward is not None:
-         self.reward.append(reward)
-
-   def outputs(self, value):
-      self.value.append(value)
-      self.lifetime += 1
-
-   def finish(self):
-      self.reward   = [np.mean(self.reward)]
-      self.value    = [np.mean(self.value)]
-      self.lifetime = [self.lifetime]
-
-      self.nUpdates  = self.lifetime[0]
-      self.nRollouts = 1
-
 @ray.remote
 class TestQuill:
    def __init__(self, config):
-      self.config = config
-      self.pantheon = Bar(title='             Pantheon', position=0)
-      self.god      = Bar(title='             God     ', position=1)
-      self.sword    = Bar(title='             Sword   ', position=2)
+      self.config     = config
+      self.stats      = defaultdict(Stat)
+      self.epochs     = 0
+      self.rollouts   = 0
+      self.updates    = 0
 
    def run(self, trinity):
       self.trinity = trinity 
@@ -191,43 +173,53 @@ class TestQuill:
       return percent
 
    def step(self):
-      #pantheonLogs = Ascend.recv('Logs', self.trinity.pantheon)
-      godLogs      = Ascend.recv('Logs', self.trinity.god)
-      #swordLogs    = Ascend.recv('Logs', self.trinity.sword)
-
-      #run, wait = self.log(godLogs)
-      #print('God - Run: ', run, ', Wait: ', wait) 
-      #print('God: ', godLogs)
-      lifetime, nEnt = [], []
-      for log in godLogs:
-         lifetime += log['lifetime']
-         nEnt.append(log['nEnt'])
-
-      if len(lifetime) == 0:
-         lifetime = 0
-      else: 
-         lifetime = np.mean(lifetime)
-
-      if len(nEnt) == 0:
-         nEnt = 0
-      else:
-         nEnt     = np.mean(nEnt)
-
-      data = {}
-
-      logs = Ascend.recv('Utilization', self.trinity.pantheon)
-      data['Pantheon'] = self.log(logs)
+      pantheonLogs = Ascend.recv(self.trinity.pantheon, 'Updates')
       
-      logs = Ascend.recv('Utilization', self.trinity.god)
-      data['God'] = self.log(logs)
+      godLogs = Ascend.recv(self.trinity.god)
+      godPerf = godLogs['Utilization']
+      godLogs = godLogs['RealmLogs']
+      
+      data = defaultdict(list)
 
-      logs = Ascend.recv('Utilization', self.trinity.sword)
-      data['Sword'] = self.log(logs)
+      for log in godLogs:
+         if len(log) > 0:
+            data['population'].append(len(log))
+         for blob in log:
+            data['lifetime'].append(blob.lifetime)
+            for tile, count in blob.exploration.items():
+               data[tile].append(count)
 
-      if lifetime > 0:
-         data['Performance'] = 'Lifetime: ' + str(lifetime) + ', Population: ' + str(nEnt)
+      for key, val in data.items():
+         if len(val) == 0:
+            val = 0
+         else:
+            val = np.mean(val)
+
+         self.stats[key].val = val
+         if val > self.stats[key].max:
+            self.stats[key].max = val
+
+      for rollouts, updates in pantheonLogs:
+         self.epochs   += 1
+         self.rollouts += rollouts
+         self.updates  += updates
+
+      util = {}
+      util['Updates'] = (self.epochs, self.rollouts, self.updates)
+
+      logs = Ascend.recv(self.trinity.pantheon, 'Utilization')
+      util['Pantheon'] = self.log(logs)
+      
+      logs = Ascend.recv(self.trinity.god, 'Utilization')
+      util['God'] = self.log(logs)
+
+      logs = Ascend.recv(self.trinity.sword, 'Utilization')
+      util['Sword'] = self.log(logs)
+
+      if len(data) > 0:
+         util['Performance'] = self.stats
  
-      return data
+      return util
 
 class Quill:
    def __init__(self, config):

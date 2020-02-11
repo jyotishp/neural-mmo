@@ -2,6 +2,7 @@ from pdb import set_trace as T
 
 import ray
 import ray.experimental.signal as signal
+import time
 
 from collections import defaultdict
 
@@ -39,24 +40,21 @@ class Pantheon(Ascend):
       super().__init__(config, idx)
       self.config   = config
       self.rollouts = {}                                                      
+      self.n        = 0
 
       device       = config.DEVICE
       self.net     = projekt.Policy(config).to(device)
       self.manager = RolloutManager(config)
 
-   def sendGrads(self):
-      grads  = self.net.grads() 
-      Ascend.send('Gradients', grads)
-
    def recvModel(self):
-      packets = Ascend.recv('Model', [self.trinity.cluster])
+      packets = Ascend.recv([self.trinity.cluster], 'Model')
       if len(packets) > 0:
          weights = packets[-1]
          setParameters(self.net, weights)
 
    @waittime
    def recvExperience(self):
-      return Ascend.recv('Experience', self.trinity.sword, timeout=None)
+      return Ascend.recv(self.trinity.sword, 'Experience', timeout=None)
 
    def run(self, trinity):
       self.trinity = trinity
@@ -75,7 +73,6 @@ class Pantheon(Ascend):
          log   : Dictionary of logs containing infrastructure usage data
       ''' 
       self.recvModel()
-      
       for packet in self.recvExperience():
          self.manager.collectInputs(packet)
          self.net(packet, self.manager)
@@ -84,10 +81,16 @@ class Pantheon(Ascend):
          for k, rollout in rollouts.items():
             assert k not in self.rollouts
             self.rollouts[k] = rollout
+            self.n += rollout.time
 
-      if len(self.rollouts) > 8:
+      if self.n > self.config.SERVER_UPDATES:
          rollouts      = self.rollouts
          self.rollouts = {}
 
          optim.backward(rollouts, self.config)                                
-         self.sendGrads()
+         grads = self.net.grads() 
+         Ascend.send('Gradients', grads)
+         Ascend.send('Updates', (len(rollouts), self.n))
+         self.n = 0
+
+

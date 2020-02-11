@@ -26,9 +26,9 @@ class Config(config.Config):
    TEST      = False            #Update the model during run?
 
    ###############################Distributed infrastructure config
-   NPANTHEON = 1                #Number of optimizers
-   NGOD      = 1                #Number of environment servers
-   NSWORD    = 1                #Number of clients per server
+   NPANTHEON = 2                #Number of optimizers
+   NGOD      = 2                #Number of environment servers
+   NSWORD    = 2                #Number of clients per server
    NCORE     = 12               #Number of cores per machine
 
    _ = 256

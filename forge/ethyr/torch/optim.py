@@ -47,7 +47,7 @@ def merge(rollouts):
             outk['atns'].append(out.atnLogits)
             outk['idxs'].append(out.atnIdx)
             outk['vals'].append(out.value)
-            outk['rets'].append(out.returns)
+            outk['rets'].append(out.reward)
             n += 1
 
    return outs, n

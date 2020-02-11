@@ -87,30 +87,6 @@ class God(Ascend):
       '''
       return entID % self.config.NSWORD
 
-   def batch(self, nUpdates):
-      '''Set backward pass flag and reset update counts
-      if the end of the data batch has been reached
-
-      Args:
-         nUpdates: The number of agent steps collected since the last call
-
-      Returns:
-         backward: (bool) Whether of not a backward pass should be performed
-
-      Note: the actual batch size will be smaller than set in the
-      configuration file due to discarded partial trajectories'''
-      SERVER_UPDATES = self.config.SERVER_UPDATES
-      TEST           = self.config.TEST
-
-      self.backward  =  False
-      self.nUpdates  += nUpdates
-
-      if not TEST and self.nUpdates > SERVER_UPDATES:
-         self.backward = True
-         self.nUpdates = 0
-
-      return self.backward
- 
    def distribute(self):
       '''Shards input data across clients using the Ascend async API
 
@@ -126,17 +102,9 @@ class God(Ascend):
          self.obs, self.rewards, self.dones, 
          self.config, self.clientHash)
 
-      #Handle possible end of batch
-      backward = self.batch(nUpdates)
-
       #Shard entities across clients
       return Ascend.distribute(self.trinity.sword,
             clientData, shard=[True])
-      #return super().distribute(clientData, shard=[True])
-
-   @waittime
-   def sync(self, rets):
-      return ray.get(rets)
 
    def synchronize(self, rets):
       '''Aggregates output data across shards with the Ascend async API
@@ -148,7 +116,7 @@ class God(Ascend):
          atnDict: Dictionary of actions to be submitted to the environment
       '''
       atnDict, gradList, blobList = None, [], []
-      for obs in self.sync(rets):
+      for obs in super().synchronize(rets):
          #Process outputs
          atnDict = IO.outputs(obs, atnDict)
 
@@ -173,9 +141,8 @@ class God(Ascend):
       '''
       self.trinity = trinity
       while True:
-         #Ascend.send('Utilization', self.env.logs())
          Ascend.send('Utilization', self.logs())
-         Ascend.send('Logs', self.envlogs())
+         Ascend.send('RealmLogs', self.env.entLog())
          self.tick()
 
    @runtime
@@ -186,18 +153,10 @@ class God(Ascend):
       Args:
          recv: Upstream data from the cluster (in this case, a param vector)
       '''
-
       #Make decisions
       packet = self.distribute()
       actions = self.synchronize(packet)
-      #actions = super().step()
 
       #Step the environment and all agents at once.
       #The environment handles action priotization etc.
       self.obs, self.rewards, self.dones, _ = self.env.step(actions)
-
-   def envlogs(self):
-      logs = {'nEnt': len(self.env.desciples), 'lifetime': []}
-      for entID, ent in self.env.desciples.items():
-         logs['lifetime'].append(ent.history.timeAlive.val)
-      return logs
