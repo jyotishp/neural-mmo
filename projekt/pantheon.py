@@ -1,7 +1,6 @@
 from pdb import set_trace as T
 
 import ray
-import ray.experimental.signal as signal
 import time
 
 from collections import defaultdict
@@ -47,23 +46,28 @@ class Pantheon(Ascend):
       self.manager = RolloutManager(config)
 
    def recvModel(self):
-      packets = Ascend.recv([self.trinity.cluster], 'Model')
+      packets = self.recv('Model')
+      packets = [e for e in packets]
       if len(packets) > 0:
          weights = packets[-1]
          setParameters(self.net, weights)
 
    @waittime
    def recvExperience(self):
-      return Ascend.recv(self.trinity.sword, 'Experience', timeout=None)
+      packets = self.recv('Experience')
+      returns = []
+      for pkt in packets:
+         if pkt.source % self.config.NPANTHEON == self.idx:
+            returns.append(pkt)
+      return returns  
 
    def run(self, trinity):
       self.trinity = trinity
       while True:
-         self.step()
-         Ascend.send('Utilization', self.logs())
+         self.step(trinity)
 
    @runtime
-   def step(self):
+   def step(self, trinity):
       '''Broadcasts updated weights to server level God optimizer nodes.
       Performs an Adam step once optimizers return a batch of gradients.
 
@@ -83,14 +87,15 @@ class Pantheon(Ascend):
             self.rollouts[k] = rollout
             self.n += rollout.time
 
+      Ascend.send(trinity.quill, self.logs(), 'Pantheon_Utilization')
       if self.n > self.config.SERVER_UPDATES:
          rollouts      = self.rollouts
          self.rollouts = {}
 
          optim.backward(rollouts, self.config)                                
          grads = self.net.grads() 
-         Ascend.send('Gradients', grads)
-         Ascend.send('Updates', (len(rollouts), self.n))
-         self.n = 0
 
+         Ascend.send(trinity.cluster, grads, 'Gradients')
+         Ascend.send(trinity.quill, (len(rollouts), self.n), 'Pantheon_Updates')
+         self.n = 0
 

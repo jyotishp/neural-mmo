@@ -41,19 +41,24 @@ class Sword(Ascend):
 
    def recvModel(self, timeout=0):
       #Receive weight packets
-      packet = Ascend.recv([self.trinity.cluster], 'Model', timeout)
+      packet = self.recv('Model')
+      packet = [e for e in packet]
 
       #Sync model weights; batch obs; compute forward pass
-      if packet is not None:
+      if len(packet) > 0:
          setParameters(self.net, packet[-1])
 
    def run(self, trinity):                                                    
       self.trinity = trinity
+      #############################################################
+      #Note: TIMEOUT NOT BEING APPLIED AND IS NEEDED TO INIT MODEL#
+      #############################################################
       self.recvModel(timeout=None)
 
    @waittime
    def sync(self, packet):
-      Ascend.send('Experience', packet)
+      packet.source = self.idx
+      Ascend.send(self.trinity.pantheon, packet, 'Experience')
 
    @runtime
    def step(self, packet):
@@ -75,7 +80,7 @@ class Sword(Ascend):
       #Send experience and logs
       self.sync(packet)
 
-      Ascend.send('Utilization', self.logs())
+      Ascend.send(self.trinity.quill, self.logs(), 'Sword_Utilization')
 
       return packet
 

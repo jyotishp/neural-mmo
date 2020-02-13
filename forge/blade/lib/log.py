@@ -24,7 +24,7 @@ class Bar(tqdm):
    def __init__(self, position=0, title='title', form=None):
       lbar = '{desc}: {percentage:3.0f}%|'
       bar = '{bar}'
-      rbar  = '| [' '{rate_fmt}{postfix}]'
+      rbar  = '| [' '{elapsed}{postfix}]'
       fmt = ''.join([lbar, bar, rbar])
 
       if form is not None:
@@ -129,8 +129,9 @@ class Blob:
       self.annID = annID
 
 @ray.remote
-class TestQuill:
+class TestQuill(Ascend):
    def __init__(self, config):
+      super().__init__(config, 0)
       self.config     = config
       self.stats      = defaultdict(Stat)
       self.epochs     = 0
@@ -173,11 +174,12 @@ class TestQuill:
       return percent
 
    def step(self):
-      pantheonLogs = Ascend.recv(self.trinity.pantheon, 'Updates')
+      pantheonLogs = self.recv('Updates')
+      pantheonLogs = []
       
-      godLogs = Ascend.recv(self.trinity.god)
-      godPerf = godLogs['Utilization']
-      godLogs = godLogs['RealmLogs']
+      #godLogs   = self.recv('God_Logs')
+      godLogs = self.recv('Realm_Logs')
+      godPerf   = self.recv('God_Utilization')
       
       data = defaultdict(list)
 
@@ -207,13 +209,16 @@ class TestQuill:
       util = {}
       util['Updates'] = (self.epochs, self.rollouts, self.updates)
 
-      logs = Ascend.recv(self.trinity.pantheon, 'Utilization')
+      logs = self.recv('Pantheon_Utilization')
+      logs = [e for e in logs]
       util['Pantheon'] = self.log(logs)
       
-      logs = Ascend.recv(self.trinity.god, 'Utilization')
+      logs = self.recv('God_Utilization')
+      logs = [e for e in logs]
       util['God'] = self.log(logs)
 
-      logs = Ascend.recv(self.trinity.sword, 'Utilization')
+      logs = self.recv('Sword_Utilization')
+      logs = [e for e in logs]
       util['Sword'] = self.log(logs)
 
       if len(data) > 0:

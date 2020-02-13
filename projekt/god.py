@@ -2,7 +2,6 @@ from pdb import set_trace as T
 import numpy as np
 
 import ray
-import ray.experimental.signal as signal
 
 from collections import defaultdict
 
@@ -141,8 +140,8 @@ class God(Ascend):
       '''
       self.trinity = trinity
       while True:
-         Ascend.send('Utilization', self.logs())
-         Ascend.send('RealmLogs', self.env.entLog())
+         Ascend.send(trinity.quill, self.logs(), 'God_Utilization')
+         Ascend.send(trinity.quill, self.env.entLog(), 'Realm_Logs')
          self.tick()
 
    @runtime

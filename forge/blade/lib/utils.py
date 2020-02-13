@@ -3,6 +3,17 @@ import time
 
 import numpy as np
 
+from queue import Queue as NonIterableQueue
+from queue import Empty
+
+class Queue(NonIterableQueue):
+   def __iter__(self):
+      while True:
+         try:
+            yield self.get_nowait()
+         except Empty:
+            return
+
 class staticproperty(property):
     def __get__(self, cls, owner):
         return self.fget.__get__(None, owner)()

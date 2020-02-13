@@ -10,15 +10,17 @@ from forge.ethyr.torch.param import getParameters
 from forge.trinity import Ascend
                                                                               
 @ray.remote                                                                   
-class Cluster:                                                                
+class Cluster(Ascend):                                                                
    def __init__(self, config, policy):
+      super().__init__(config, 0)
       #Train until AGI emerges
       self.model = Model(policy, config)
       self.model.printParams()
 
    def sendModel(self):                                                       
       weights = getParameters(self.model.net)
-      Ascend.send('Model', weights)
+      Ascend.send(self.trinity.pantheon, weights, 'Model')
+      Ascend.send(self.trinity.sword, weights, 'Model')
 
    def log(self, logs):
       if len(logs) > 0:
@@ -50,7 +52,8 @@ class Cluster:
       self.trinity = trinity
       self.sendModel()
       while True:
-         grads = Ascend.recv(self.trinity.pantheon, 'Gradients')
+         grads = self.recv('Gradients')
+         grads = [e for e in grads]
 
          if len(grads) > 0:                                                   
             perf = self.model.step(grads, [], [], 0.0)

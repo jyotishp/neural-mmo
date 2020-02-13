@@ -102,11 +102,14 @@ class LogBars:
       self.len      = 0
       self.pos      = 4
       self.stats    = {}
+      self.start = time.time()
 
    def log(self, percent, bar):
       bar.refresh()
       if percent != 0:
+         bar.start_t = self.start
          bar.percent(percent)
+         self.start = time.time()
 
    def step(self, packet):
       self.log(packet['Pantheon'], self.pantheon)

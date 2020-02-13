@@ -2,6 +2,7 @@ from pdb import set_trace as T
 
 import ray, time
 import ray.experimental.signal as signal                                      
+from forge.blade.lib.utils import Queue
 
 import os
 from collections import defaultdict
@@ -99,17 +100,37 @@ class Ascend(Timed):
    External documentation is available at :mod:`forge.trinity.api`'''
    def __init__(self, config, idx):
       super().__init__()
-      self.idx    = idx
+      self.inbox = defaultdict(Queue)
+      self.idx   = idx
 
+   def put(self, packet, key):
+      self.inbox[key].put(packet)
+
+   def recv(self, key):
+      return self.inbox[key]
+
+   @staticmethod
+   def send(dests, packet, key):
+      if type(dests) != list:
+         dests = [dests]
+
+      for dst in dests:
+         try:
+            dst.put.remote(packet, key)
+         except:
+            print('Error at {}'.format(dst))
+
+     
    #@staticmethod
    #def clear():
    #   os.system('clear')
 
+   '''
    def send(key, data):
       packet = Packet(key, data)
       signal.send(packet)
 
-   def recv(source, key=None, timeout=0.001):
+   def recv(source, key=None, timeout=0.01):
       packets = signal.receive(source, timeout)
       ret = defaultdict(list) 
       for p in packets:
@@ -120,6 +141,7 @@ class Ascend(Timed):
       if key is None:
          return ret
       return ret[key]
+   '''
 
    def init(disciple, config, n, *args):
       remote   = Ascend.isRemote(disciple)
