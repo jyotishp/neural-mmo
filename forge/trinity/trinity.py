@@ -61,11 +61,14 @@ class Trinity():
       lib.ray.init(config, args.ray)
       self.config   = config
 
-      #Logging and cluster management
+      #Logging
       self.quill    = self.quill.remote(config)
-      self.cluster  = self.cluster.remote(config, policy)
 
       ###Remote trinity workers
+      self.cluster  = Ascend.init(
+            self.cluster,
+            config,
+            1)
       self.pantheon = Ascend.init(
             self.pantheon,
             config,
@@ -80,12 +83,11 @@ class Trinity():
             config.NSWORD)
 
       #Sync model to rollout workers
-      workers = [self.cluster]
       self.quill.init.remote(self)
-      workers += self.pantheon + self.god + self.sword
+      workers = self.cluster + self.pantheon + self.god + self.sword
 
       for w in workers:
-         w.run.remote(self) 
+         w.disciple.run.remote(self) 
 
       #Ascend.step(self.pantheon) # -> optimize model
       #Ascend.step(self.god)      # -> communicate obs to Sword

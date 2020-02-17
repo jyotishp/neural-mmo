@@ -2,13 +2,14 @@ from pdb import set_trace as T
 
 import ray
 import time
+import asyncio
 
 from collections import defaultdict
 
 from forge.blade.lib.log import BlobSummary
 
 from forge.ethyr.torch import Model
-from forge.trinity.ascend import Ascend, Packet, runtime, waittime
+from forge.trinity.ascend import Ascend, runtime, waittime
 
 from forge.ethyr.experience import Rollout, RolloutManager
 
@@ -61,9 +62,10 @@ class Pantheon(Ascend):
             returns.append(pkt)
       return returns  
 
-   def run(self, trinity):
+   async def run(self, trinity):
       self.trinity = trinity
       while True:
+         asyncio.sleep(0)
          self.step(trinity)
 
    @runtime

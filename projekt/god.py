@@ -2,6 +2,7 @@ from pdb import set_trace as T
 import numpy as np
 
 import ray
+import asyncio
 
 from collections import defaultdict
 
@@ -117,6 +118,7 @@ class God(Ascend):
       atnDict, gradList, blobList = None, [], []
       for obs in super().synchronize(rets):
          #Process outputs
+         print(ray.get(rets))
          atnDict = IO.outputs(obs, atnDict)
 
          #Collect update
@@ -126,7 +128,7 @@ class God(Ascend):
 
       return atnDict
 
-   def run(self, trinity):
+   async def run(self, trinity):
       '''Sync weights and compute a model update by collecting
       a batch of trajectories from remote clients.
 
@@ -140,6 +142,7 @@ class God(Ascend):
       '''
       self.trinity = trinity
       while True:
+         asyncio.sleep(0)
          Ascend.send(trinity.quill, self.logs(), 'God_Utilization')
          Ascend.send(trinity.quill, self.env.entLog(), 'Realm_Logs')
          self.tick()

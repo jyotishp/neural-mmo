@@ -1,20 +1,11 @@
 from pdb import set_trace as T
 
 import ray, time
-import ray.experimental.signal as signal                                      
-from forge.blade.lib.utils import Queue
+import asyncio
 
 import os
 from collections import defaultdict
                                                                               
-class Packet(signal.Signal):                                                  
-   def __init__(self, key, value):                                                 
-      self.key   = key
-      self.value = value                                                      
-                                                                              
-   def get_value(self):                                                       
-      return self.value  
-
 class Timed:
    '''Performance timing superclass.
 
@@ -95,20 +86,57 @@ def runtime(func):
 
    return decorated
 
+@ray.remote
+class AsyncQueue:
+   def __init__(self):
+      self.inbox = defaultdict(asyncio.Queue)
+
+   async def put(self, packet, key):
+      print('Put data')
+      await self.inbox[key].put(packet)
+
+   async def get(self, key):
+      data = []
+      while True:
+         try:
+            pkt = self.inbox[key].get_nowait()
+            data.append(pkt)
+         except asyncio.QueueEmpty:
+            break
+      return data
+
+
+class AscendWrapper:
+   def __init__(self, disciple, queue):
+      self.disciple = disciple
+      self.queue    = queue
+
 class Ascend(Timed):
    '''This module is the Ascend core and only documents the internal API.
    External documentation is available at :mod:`forge.trinity.api`'''
    def __init__(self, config, idx):
       super().__init__()
-      self.inbox = defaultdict(Queue)
-      self.idx   = idx
+      self.config = config
+      self.idx    = idx
 
-   def put(self, packet, key):
-      self.inbox[key].put(packet)
+   def setQueue(self, queue):
+      self.queue = queue
 
-   def recv(self, key):
-      return self.inbox[key]
+   def init(disciple, config, n, *args):
+      disciple = Ascend.localize(disciple)
+      actors = []
+      for idx in range(n):
+         actor = disciple(config, idx, *args)
+         queue = AsyncQueue.remote()
 
+         setQueue = Ascend.localize(actor.setQueue)
+         setQueue(queue)
+
+         actor = AscendWrapper(actor, queue)
+         actors.append(actor)
+
+      return actors
+         
    @staticmethod
    def send(dests, packet, key):
       if type(dests) != list:
@@ -116,37 +144,13 @@ class Ascend(Timed):
 
       for dst in dests:
          try:
-            dst.put.remote(packet, key)
-         except:
-            print('Error at {}'.format(dst))
+            dst.queue.put.remote(packet, key)
+         except Exception as e:
+            print('Error at {}: {}'.format(dst, e))
 
-     
-   #@staticmethod
-   #def clear():
-   #   os.system('clear')
-
-   '''
-   def send(key, data):
-      packet = Packet(key, data)
-      signal.send(packet)
-
-   def recv(source, key=None, timeout=0.01):
-      packets = signal.receive(source, timeout)
-      ret = defaultdict(list) 
-      for p in packets:
-         p = p[1]
-         assert type(p) != signal.ErrorSignal, p.error
-         ret[p.key].append(p.value)
-
-      if key is None:
-         return ret
-      return ret[key]
-   '''
-
-   def init(disciple, config, n, *args):
-      remote   = Ascend.isRemote(disciple)
-      disciple = Ascend.localize(disciple, remote)
-      return [disciple(config, idx, *args) for idx in range(n)]
+   def recv(self, key):
+      func = Ascend.localize(self.queue.get)
+      return Ascend.get(func(key))
 
    def distribute(disciples, *args, shard=None):
       arg, rets = args, []
@@ -170,10 +174,7 @@ class Ascend(Timed):
 
    @waittime
    def synchronize(self, rets):
-      try:
-         return ray.get(rets)
-      except:
-         return rets
+      return Ascend.get(rets)
 
    def step(disciples, *args, shard=False):
       rets = Ascend.distribute(disciples, *args)
@@ -192,9 +193,28 @@ class Ascend(Timed):
       logs = Log.summary(logs)
       return logs
 
- 
-   def localize(func, remote):
+   def get(rets):
+      try:
+         return ray.get(rets)
+      except:
+         return rets
+
+   def localize(obj):
+      remote = Ascend.isRemote(obj) 
+      return Ascend.setRemote(obj, remote)
+      
+   def setRemote(func, remote):
       return func if not remote else func.remote
 
    def isRemote(obj):
-      return hasattr(obj, 'remote') or hasattr(obj, '__ray_checkpoint__')
+      #Remote function
+      if hasattr(obj, 'remote'):
+         return True
+      #Remote actor
+      if hasattr(obj, '__ray_checkpoint__'):
+         return True
+
+      #Local function or actor
+      return False
+
+
