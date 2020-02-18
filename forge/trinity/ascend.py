@@ -5,6 +5,7 @@ import asyncio
 
 import os
 from collections import defaultdict
+from queue import Queue, Empty
                                                                               
 class Timed:
    '''Performance timing superclass.
@@ -89,22 +90,17 @@ def runtime(func):
 @ray.remote
 class AsyncQueue:
    def __init__(self):
-      self.inbox = defaultdict(asyncio.Queue)
+      self.inbox = defaultdict(list)
 
-   async def put(self, packet, key):
-      print('Put data')
-      await self.inbox[key].put(packet)
+   def put(self, packet, key):
+      #print('Put {} with Key: {}'.format(packet, key))
+      self.inbox[key].append(packet)
 
-   async def get(self, key):
-      data = []
-      while True:
-         try:
-            pkt = self.inbox[key].get_nowait()
-            data.append(pkt)
-         except asyncio.QueueEmpty:
-            break
+   def get(self, key):
+      data = self.inbox[key]
+      #print('Get {} with Key: {}'.format(data, key))
+      self.inbox[key] = []
       return data
-
 
 class AscendWrapper:
    def __init__(self, disciple, queue):
@@ -122,7 +118,26 @@ class Ascend(Timed):
    def setQueue(self, queue):
       self.queue = queue
 
-   def init(disciple, config, n, *args):
+   def run(disciples):
+      if type(disciples) != list:
+         disciples = [disciples]
+
+      for d in disciples:
+         Ascend.localize(d.disciple.run)()
+
+   def init(disciples, trinity, asynchronous=False):
+      if type(disciples) != list:
+         disciples = [disciples]
+
+      rets = []
+      for d in disciples:
+         init = Ascend.localize(d.disciple.init)
+         rets.append(init(trinity))
+      
+      if not asynchronous:
+         Ascend.get(rets)
+
+   def proselytize(disciple, config, n, *args):
       disciple = Ascend.localize(disciple)
       actors = []
       for idx in range(n):
@@ -147,16 +162,21 @@ class Ascend(Timed):
             dst.queue.put.remote(packet, key)
          except Exception as e:
             print('Error at {}: {}'.format(dst, e))
+      return True
 
    def recv(self, key):
       func = Ascend.localize(self.queue.get)
-      return Ascend.get(func(key))
+      ret  = Ascend.get(func(key))
+      #if type(ret) != list or (type(ret) == list and ret != []):
+      #   print('Recv Key: {}, Value: {}'.format(key, ret))
+      #if type(ret) != list:
+      #   print('############### Recv Key: {}, Type: {}'.format(key, ret))
+      return ret
 
    def distribute(disciples, *args, shard=None):
       arg, rets = args, []
       for discIdx, disciple in enumerate(disciples):
-         remote = Ascend.isRemote(disciple)
-         step   = Ascend.localize(disciple.step, remote)
+         step   = Ascend.localize(disciple.disciple.step)
 
          arg = []
          for shardIdx, e in enumerate(args):
@@ -196,7 +216,7 @@ class Ascend(Timed):
    def get(rets):
       try:
          return ray.get(rets)
-      except:
+      except Exception as e:
          return rets
 
    def localize(obj):

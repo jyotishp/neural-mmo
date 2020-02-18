@@ -18,7 +18,7 @@ from forge.ethyr.torch.param import getParameters, setParameters
 
 import projekt
 
-@ray.remote
+@ray.remote(num_gpus=1)
 class Pantheon(Ascend):
    '''Cluster level infrastructure layer
 
@@ -62,14 +62,15 @@ class Pantheon(Ascend):
             returns.append(pkt)
       return returns  
 
-   async def run(self, trinity):
+   def init(self, trinity):
       self.trinity = trinity
+
+   def run(self):
       while True:
-         asyncio.sleep(0)
-         self.step(trinity)
+         self.step()
 
    @runtime
-   def step(self, trinity):
+   def step(self):
       '''Broadcasts updated weights to server level God optimizer nodes.
       Performs an Adam step once optimizers return a batch of gradients.
 
@@ -79,6 +80,7 @@ class Pantheon(Ascend):
          log   : Dictionary of logs containing infrastructure usage data
       ''' 
       self.recvModel()
+      trinity = self.trinity
       for packet in self.recvExperience():
          self.manager.collectInputs(packet)
          self.net(packet, self.manager)
@@ -89,6 +91,7 @@ class Pantheon(Ascend):
             self.rollouts[k] = rollout
             self.n += rollout.time
 
+      time.sleep(0.1)
       Ascend.send(trinity.quill, self.logs(), 'Pantheon_Utilization')
       if self.n > self.config.SERVER_UPDATES:
          rollouts      = self.rollouts

@@ -154,7 +154,8 @@ if __name__ == '__main__':
    #Train until AGI emerges
    trinity.init(config, args, Policy)
    while True:
-      packet = trinity.quill.step.remote()
+      time.sleep(0.25)
+      packet = trinity.quill.disciple.step.remote()
       packet = ray.get(packet)
       bars.step(packet)
 

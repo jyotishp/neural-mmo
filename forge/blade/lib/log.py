@@ -130,7 +130,7 @@ class Blob:
 
 @ray.remote
 class TestQuill(Ascend):
-   def __init__(self, config):
+   def __init__(self, config, idx):
       super().__init__(config, 0)
       self.config     = config
       self.stats      = defaultdict(Stat)
@@ -138,8 +138,10 @@ class TestQuill(Ascend):
       self.rollouts   = 0
       self.updates    = 0
 
-   def run(self, trinity):
-      self.trinity = trinity 
+   def init(self, trinity):
+      self.trinity = trinity
+
+   def run(self):
       while True:
          self.step()
 
@@ -174,12 +176,10 @@ class TestQuill(Ascend):
       return percent
 
    def step(self):
-      pantheonLogs = self.recv('Updates')
-      pantheonLogs = []
+      pantheonLogs = self.recv('Pantheon_Updates')
       
-      #godLogs   = self.recv('God_Logs')
-      godLogs = self.recv('Realm_Logs')
-      godPerf   = self.recv('God_Utilization')
+      godLogs   = self.recv('God_Logs')
+      godLogs   = self.recv('Realm_Logs')
       
       data = defaultdict(list)
 

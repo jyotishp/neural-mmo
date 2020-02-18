@@ -61,38 +61,35 @@ class Trinity():
       lib.ray.init(config, args.ray)
       self.config   = config
 
-      #Logging
-      self.quill    = self.quill.remote(config)
-
-      ###Remote trinity workers
-      self.cluster  = Ascend.init(
+      ###Logging
+      self.quill    = Ascend.proselytize(
+            self.quill,
+            config, 1)[0]
+      self.cluster  = Ascend.proselytize(
             self.cluster,
-            config,
-            1)
-      self.pantheon = Ascend.init(
+            config, 1, policy)[0]
+      acolytes = [self.quill, self.cluster]
+      
+      ###Remote trinity workers
+      self.pantheon = Ascend.proselytize(
             self.pantheon,
             config,
             config.NPANTHEON)
-      self.god = Ascend.init(
+      self.god = Ascend.proselytize(
             self.god,
             config,
             config.NGOD)
-      self.sword = Ascend.init(
+      self.sword = Ascend.proselytize(
             self.sword,
             config,
             config.NSWORD)
+      trinity = self.pantheon + self.god + self.sword
 
       #Sync model to rollout workers
-      self.quill.init.remote(self)
-      workers = self.cluster + self.pantheon + self.god + self.sword
+      Ascend.init(acolytes, self)
+      Ascend.init(trinity, self)
+      Ascend.run(trinity)
 
-      for w in workers:
-         w.disciple.run.remote(self) 
-
-      #Ascend.step(self.pantheon) # -> optimize model
-      #Ascend.step(self.god)      # -> communicate obs to Sword
-      #Ascend.step(self.sword)    # -> sync experience to Pantheon
-   
       return self
 
    def step(self):

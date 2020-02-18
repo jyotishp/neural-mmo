@@ -3,6 +3,7 @@ import numpy as np
 
 import ray
 import asyncio
+import time
 
 from collections import defaultdict
 
@@ -106,6 +107,11 @@ class God(Ascend):
       return Ascend.distribute(self.trinity.sword,
             clientData, shard=[True])
 
+   @waittime
+   def syn(dat):
+      time.sleep(0.1)
+      return ray.get(dat)
+
    def synchronize(self, rets):
       '''Aggregates output data across shards with the Ascend async API
 
@@ -116,9 +122,9 @@ class God(Ascend):
          atnDict: Dictionary of actions to be submitted to the environment
       '''
       atnDict, gradList, blobList = None, [], []
+      #for obs in self.syn(rets):
       for obs in super().synchronize(rets):
          #Process outputs
-         print(ray.get(rets))
          atnDict = IO.outputs(obs, atnDict)
 
          #Collect update
@@ -128,7 +134,10 @@ class God(Ascend):
 
       return atnDict
 
-   async def run(self, trinity):
+   def init(self, trinity):
+      self.trinity = trinity
+
+   def run(self):
       '''Sync weights and compute a model update by collecting
       a batch of trajectories from remote clients.
 
@@ -140,11 +149,9 @@ class God(Ascend):
          summary : A BlobSummary object logging agent statistics
          log     : Logging object for infrastructure timings
       '''
-      self.trinity = trinity
       while True:
-         asyncio.sleep(0)
-         Ascend.send(trinity.quill, self.logs(), 'God_Utilization')
-         Ascend.send(trinity.quill, self.env.entLog(), 'Realm_Logs')
+         Ascend.send(self.trinity.quill, self.logs(), 'God_Utilization')
+         Ascend.send(self.trinity.quill, self.env.entLog(), 'Realm_Logs')
          self.tick()
 
    @runtime
@@ -156,7 +163,7 @@ class God(Ascend):
          recv: Upstream data from the cluster (in this case, a param vector)
       '''
       #Make decisions
-      packet = self.distribute()
+      packet  = self.distribute()
       actions = self.synchronize(packet)
 
       #Step the environment and all agents at once.

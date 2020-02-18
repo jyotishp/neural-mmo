@@ -39,7 +39,7 @@ class Sword(Ascend):
 
       self.net      = projekt.Policy(config).to(device).eval()
 
-   def recvModel(self, timeout=0):
+   def recvModel(self):
       #Receive weight packets
       packet = self.recv('Model')
       packet = [e for e in packet]
@@ -48,12 +48,18 @@ class Sword(Ascend):
       if len(packet) > 0:
          setParameters(self.net, packet[-1])
 
-   def run(self, trinity):                                                    
+      return packet
+
+   def init(self, trinity):
       self.trinity = trinity
       #############################################################
       #Note: TIMEOUT NOT BEING APPLIED AND IS NEEDED TO INIT MODEL#
       #############################################################
-      self.recvModel(timeout=None)
+      packet = self.recvModel()
+      assert len(packet) > 0
+
+   def run(self):
+      pass
 
    @waittime
    def sync(self, packet):
