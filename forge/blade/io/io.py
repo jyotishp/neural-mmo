@@ -122,6 +122,7 @@ class IO:
          idx = clientHash(done[1])
          inputs[idx].dones.append(done)
 
+      t = time.time()
       ### Process inputs
       n = 0
       for ob, reward in zip(obs, rewards):
@@ -131,11 +132,18 @@ class IO:
          stimulus.Dynamic.process(config, inputs[idx], env, ent, serialize)
          inputs[idx].obs.n += 1
          n += 1
+      #print('Obs: {:.4f}'.format(time.time() - t))
       
-      start = time.time()
+      t = time.time()
       #Index actions
+      deserialize = {}
       for idx, inp in inputs.items():
          inputs[idx].actions()
+         mapping = inputs[idx].lookup.deserialize
+         deserialize = {**deserialize, **mapping}
+   
+      #Don't send raw env data to clients
+      del inputs[idx].lookup.deserialize
 
       ### Process outputs
       for ob, reward in zip(obs, rewards):
@@ -151,9 +159,9 @@ class IO:
       if default:
          inputs = inputs[0]
 
-      return inputs, n
+      return inputs, deserialize, n
 
-   def outputs(obs, atnDict=None):
+   def outputs(obs, deserialize, atnDict=None):
       '''Core Output library for postprocessing flat agent decisions into
       structured action argument lists
 
@@ -191,7 +199,8 @@ class IO:
          for arg, atnsIdx in action.args.items():
             for idx, a in enumerate(atnsIdx):
                _, entID, _, _ = names[idx]
-               a = obs.lookup.reverse(a)
+               #a = obs.lookup.reverse(a)
+               a = deserialize[a]
                atnDict[entID][atn].append(a)
 
       return atnDict 
@@ -202,6 +211,7 @@ class Lookup:
    def __init__(self):
       self.data = {}
       self.back = {}
+      self.deserialize = {}
       self.max = 0
 
    def add(self, name, idx=None, orig=None):
@@ -211,9 +221,11 @@ class Lookup:
 
       assert name not in self.data
       assert idx not in self.back
+      assert name not in self.deserialize
       self.data[name] = idx
       if orig is not None:
-         self.back[idx] = orig
+         self.back[idx] = name
+         self.deserialize[name] = orig
       self.max += 1
 
       return idx

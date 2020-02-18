@@ -55,8 +55,9 @@ class Output(nn.Module):
 
             #Convert from local index over atns to
             #absolute index into entity lookup table
+            mapping = obs.lookup.back
             idxs = atnsIdx.cpu().numpy().tolist()
-            idxs = [t[a] for t, a in zip(tensor, idxs)]
+            idxs = [mapping[t[a]] for t, a in zip(tensor, idxs)]
             #obs.atn.actions[atn].arguments[arg] = idxs
             obs.atn.actions[atn].args[arg] = idxs
             obs.atn.actions[atn].idxs[arg] = atnsIdx

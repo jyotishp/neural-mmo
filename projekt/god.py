@@ -99,20 +99,20 @@ class God(Ascend):
       '''
 
       #Preprocess obs
-      clientData, nUpdates = IO.inputs(
+      clientData, deserialize, nUpdates = IO.inputs(
          self.obs, self.rewards, self.dones, 
          self.config, self.clientHash)
 
       #Shard entities across clients
       return Ascend.distribute(self.trinity.sword,
-            clientData, shard=[True])
+            clientData, shard=[True]), deserialize
 
    @waittime
    def syn(dat):
       time.sleep(0.1)
       return ray.get(dat)
 
-   def synchronize(self, rets):
+   def synchronize(self, rets, deserialize):
       '''Aggregates output data across shards with the Ascend async API
 
       Args:
@@ -125,7 +125,7 @@ class God(Ascend):
       #for obs in self.syn(rets):
       for obs in super().synchronize(rets):
          #Process outputs
-         atnDict = IO.outputs(obs, atnDict)
+         atnDict = IO.outputs(obs, deserialize, atnDict)
 
          #Collect update
          if False and self.backward:
@@ -163,8 +163,8 @@ class God(Ascend):
          recv: Upstream data from the cluster (in this case, a param vector)
       '''
       #Make decisions
-      packet  = self.distribute()
-      actions = self.synchronize(packet)
+      packet, deserialize = self.distribute()
+      actions             = self.synchronize(packet, deserialize)
 
       #Step the environment and all agents at once.
       #The environment handles action priotization etc.
