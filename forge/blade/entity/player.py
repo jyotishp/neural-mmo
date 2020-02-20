@@ -7,6 +7,7 @@ from forge.blade.systems import ai
 from forge.blade.lib.enums import Material, Neon
 from forge.blade.lib.log import Blob
 
+from forge.blade.io.stimulus.node import ClassIterable
 from forge.blade.io.stimulus.hook import StimHook
 from forge.blade.io.stimulus.static import Stimulus
 from forge.blade.io.action import static as action
@@ -137,11 +138,9 @@ class Status(StimHook):
       lvl = wilderness(self.config, ent.base.pos)
       self.wilderness.update(lvl)
 
-class Player():
+class Player(StimHook):
    SERIAL = 0
    def __init__(self, config, iden, pop, env, name='', color=None):
-      self.config = config
-
       #Identifiers
       self.entID   = iden 
       self.annID   = pop
@@ -154,6 +153,8 @@ class Player():
       self.status    = Status(config)
       self.skills    = Skills(config)
       self.history   = History(config)
+
+      super().__init__(Stimulus.Entity, config, inputs=False)
       #self.inventory = Inventory(config)
       #self.chat      = Chat(config)
 
@@ -177,7 +178,7 @@ class Player():
 
    @property
    def serial(self):
-      return self.annID, self.entID, self.realmID
+      return 10*self.entID + Player.SERIAL
 
    def log(self):
       return Blob(

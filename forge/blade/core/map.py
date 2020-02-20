@@ -14,10 +14,12 @@ def loadTiled(config, fPath, idx, tiles, nCounts):
     layer = tm.layers[0]
     W, H = layer.width, layer.height
     tilemap = np.zeros((H, W), dtype=object)
+    i = 0 
     for w, h, dat in layer.tiles():
        f = dat[0]
        tex = f.split('/')[-1].split('.')[0]
-       tilemap[h, w] = core.Tile(config, tiles[tex], idx, h, w, nCounts, tex)
+       tilemap[h, w] = core.Tile(config, tiles[tex], i, h, w, nCounts, tex)
+       i += 1
     return tilemap
 
 class Map:

@@ -22,7 +22,7 @@ class Tile(StimHook):
 
    @property
    def serial(self):
-      return self.r, self.c, self.idx
+      return 10*self.idx + Tile.SERIAL
 
    def addEnt(self, entID, ent):
       assert entID not in self.ents

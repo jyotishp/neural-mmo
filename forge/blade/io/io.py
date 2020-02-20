@@ -50,10 +50,10 @@ class IOPacket:
 
    def actions(self, serialize=True):
       for atn in action.Static.arguments:
-         serial = atn
+         key = atn
          if serialize:
-            serial = Serial.key(serial)
-         self.lookup.add(serial, orig=atn)
+            key = (0, key.serial)
+         self.lookup.add(key, orig=atn)
 
    def key(self, env, ent, reward, config):
       annID, entID, realmID = ent.annID, ent.entID, ent.realmID
@@ -119,10 +119,9 @@ class IO:
          clientHash=lambda x: 0
 
       for done in dones:
-         idx = clientHash(done[1])
+         idx = clientHash(done)
          inputs[idx].dones.append(done)
 
-      t = time.time()
       ### Process inputs
       n = 0
       for ob, reward in zip(obs, rewards):
@@ -132,9 +131,7 @@ class IO:
          stimulus.Dynamic.process(config, inputs[idx], env, ent, serialize)
          inputs[idx].obs.n += 1
          n += 1
-      #print('Obs: {:.4f}'.format(time.time() - t))
       
-      t = time.time()
       #Index actions
       deserialize = {}
       for idx, inp in inputs.items():
@@ -198,9 +195,8 @@ class IO:
       for atn, action in obs.atn.actions.items():
          for arg, atnsIdx in action.args.items():
             for idx, a in enumerate(atnsIdx):
-               _, entID, _, _ = names[idx]
-               #a = obs.lookup.reverse(a)
-               a = deserialize[a]
+               entID = names[idx].entID
+               a     = deserialize[a]
                atnDict[entID][atn].append(a)
 
       return atnDict 

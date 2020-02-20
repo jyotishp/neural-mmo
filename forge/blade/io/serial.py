@@ -21,10 +21,12 @@ class Serial:
          return tuple([-1]*Serial.KEYLEN)
 
       #Concat object key with class key
-      ret = key.serial + tuple([key.SERIAL])
-      pad = Serial.KEYLEN - len(ret)
-      ret = tuple(pad*[-1]) + ret
-      return ret
+      T()
+      n = Serial.KEYLEN - len(key.serial) - 1
+      ret = [-1]*Serial.KEYLEN
+      ret[-1] = key.SERIAL
+      ret[n:-1] = key.serial
+      return tuple(ret)
 
    def nontemporal(key):
       '''Get the time independent part of a key'''
