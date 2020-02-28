@@ -177,9 +177,8 @@ class TestQuill(Ascend):
 
    def step(self):
       pantheonLogs = self.recv('Pantheon_Updates')
-      
-      godLogs   = self.recv('God_Logs')
-      godLogs   = self.recv('Realm_Logs')
+      godLogs      = self.recv('God_Logs')
+      godLogs      = self.recv('Realm_Logs')
       
       data = defaultdict(list)
 

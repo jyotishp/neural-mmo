@@ -2,7 +2,6 @@ from pdb import set_trace as T
 import numpy as np
 
 import ray
-import asyncio
 import time
 
 from collections import defaultdict
@@ -137,7 +136,7 @@ class God(Ascend):
    def init(self, trinity):
       self.trinity = trinity
 
-   def run(self):
+   def step(self):
       '''Sync weights and compute a model update by collecting
       a batch of trajectories from remote clients.
 
@@ -149,10 +148,9 @@ class God(Ascend):
          summary : A BlobSummary object logging agent statistics
          log     : Logging object for infrastructure timings
       '''
-      while True:
-         Ascend.send(self.trinity.quill, self.logs(), 'God_Utilization')
-         Ascend.send(self.trinity.quill, self.env.entLog(), 'Realm_Logs')
-         self.tick()
+      Ascend.send(self.trinity.quill, self.logs(), 'God_Utilization')
+      Ascend.send(self.trinity.quill, self.env.entLog(), 'Realm_Logs')
+      self.tick()
 
    @runtime
    def tick(self):

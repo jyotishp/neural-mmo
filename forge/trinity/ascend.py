@@ -1,7 +1,6 @@
 from pdb import set_trace as T
 
 import ray, time
-import asyncio
 
 import os
 from collections import defaultdict
@@ -87,14 +86,13 @@ def runtime(func):
 
    return decorated
 
-@ray.remote
 class AsyncQueue:
    def __init__(self):
       self.inbox = defaultdict(list)
 
    def put(self, packet, key):
       #print('Put {} with Key: {}'.format(packet, key))
-      self.inbox[key].append(packet)
+      return self.inbox[key].append(packet)
 
    def get(self, key):
       data = self.inbox[key]
@@ -112,18 +110,16 @@ class Ascend(Timed):
    External documentation is available at :mod:`forge.trinity.api`'''
    def __init__(self, config, idx):
       super().__init__()
+      self.queue = AsyncQueue()
       self.config = config
       self.idx    = idx
-
-   def setQueue(self, queue):
-      self.queue = queue
 
    def run(disciples):
       if type(disciples) != list:
          disciples = [disciples]
 
       for d in disciples:
-         Ascend.localize(d.disciple.run)()
+         Ascend.localize(d.run)()
 
    def init(disciples, trinity, asynchronous=False):
       if type(disciples) != list:
@@ -131,7 +127,7 @@ class Ascend(Timed):
 
       rets = []
       for d in disciples:
-         init = Ascend.localize(d.disciple.init)
+         init = Ascend.localize(d.init)
          rets.append(init(trinity))
       
       if not asynchronous:
@@ -142,16 +138,13 @@ class Ascend(Timed):
       actors = []
       for idx in range(n):
          actor = disciple(config, idx, *args)
-         queue = AsyncQueue.remote()
-
-         setQueue = Ascend.localize(actor.setQueue)
-         setQueue(queue)
-
-         actor = AscendWrapper(actor, queue)
          actors.append(actor)
 
       return actors
          
+   def put(self, packet, key):
+      self.queue.put(packet, key)
+
    @staticmethod
    def send(dests, packet, key):
       if type(dests) != list:
@@ -159,24 +152,22 @@ class Ascend(Timed):
 
       for dst in dests:
          try:
-            dst.queue.put.remote(packet, key)
+            dst.put.remote(packet, key)
          except Exception as e:
             print('Error at {}: {}'.format(dst, e))
       return True
 
    def recv(self, key):
-      func = Ascend.localize(self.queue.get)
-      ret  = Ascend.get(func(key))
+      return self.queue.get(key)
       #if type(ret) != list or (type(ret) == list and ret != []):
       #   print('Recv Key: {}, Value: {}'.format(key, ret))
       #if type(ret) != list:
       #   print('############### Recv Key: {}, Type: {}'.format(key, ret))
-      return ret
 
    def distribute(disciples, *args, shard=None):
       arg, rets = args, []
       for discIdx, disciple in enumerate(disciples):
-         step   = Ascend.localize(disciple.disciple.step)
+         step   = Ascend.localize(disciple.step)
 
          arg = []
          for shardIdx, e in enumerate(args):

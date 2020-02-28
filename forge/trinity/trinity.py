@@ -88,7 +88,6 @@ class Trinity():
       #Sync model to rollout workers
       Ascend.init(acolytes, self)
       Ascend.init(trinity, self)
-      Ascend.run(trinity)
 
       return self
 

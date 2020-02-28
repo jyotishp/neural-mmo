@@ -2,7 +2,6 @@ from pdb import set_trace as T
 
 import ray
 import time
-import asyncio
 
 from collections import defaultdict
 
@@ -64,10 +63,6 @@ class Pantheon(Ascend):
 
    def init(self, trinity):
       self.trinity = trinity
-
-   def run(self):
-      while True:
-         self.step()
 
    @runtime
    def step(self):
