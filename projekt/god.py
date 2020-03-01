@@ -70,6 +70,7 @@ class God(Ascend):
       self.blobs    = BlobSummary()
 
       self.obs, self.rewards, self.dones, _ = self.env.reset()
+      self.workerName = 'God+Realm {}'.format(self.idxStr)
 
    def getEnv(self):
       '''Ray does not allow direct access to remote attributes
@@ -85,6 +86,7 @@ class God(Ascend):
       Returns:
          clientID: A client membership ID
       '''
+      return self.idx
       return entID % self.config.NSWORD
 
    def distribute(self):
@@ -135,6 +137,7 @@ class God(Ascend):
 
    def init(self, trinity):
       self.trinity = trinity
+      return self.workerName, 'Initialized'
 
    def step(self):
       '''Sync weights and compute a model update by collecting
@@ -149,7 +152,9 @@ class God(Ascend):
          log     : Logging object for infrastructure timings
       '''
       Ascend.send(self.trinity.quill, self.logs(), 'God_Utilization')
-      Ascend.send(self.trinity.quill, self.env.entLog(), 'Realm_Logs')
+      entLog = self.env.entLog()
+      if len(entLog) > 0:
+         Ascend.send(self.trinity.quill, entLog, 'Realm_Logs')
       self.tick()
 
    @runtime

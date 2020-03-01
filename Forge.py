@@ -30,7 +30,7 @@ import ray.experimental.signal as signal
 
 from forge.blade import lib
 from forge.blade.core import Realm
-from forge.blade.lib.log import TestQuill, Bar
+from forge.blade.lib.log import Quill, Bar
 
 from forge.trinity import Trinity
 from forge.ethyr.torch import Model
@@ -112,17 +112,32 @@ class LogBars:
          self.start = time.time()
 
    def step(self, packet):
-      self.log(packet['Pantheon'], self.pantheon)
-      self.log(packet['God'], self.god)
-      self.log(packet['Sword'], self.sword)
+      keys = 'Pantheon God Sword'.split()
+      bars = [self.pantheon, self.god, self.sword]
+      for k, b in zip(keys, bars):
+         b.refresh()
+         if k not in packet:
+            continue
+         pkt = packet[k]
+         run  = pkt['run'].val
+         wait = pkt['wait'].val
+         if 0 == run == wait:
+            continue
+         else:
+            percent = run / (run + wait)
+            self.log(percent, b)
 
       if 'Performance' in packet:
-         data                      = packet['Performance']
-         epochs, rollouts, updates = packet['Updates']
+         pkt      = packet['Performance']
+         epochs   = pkt['Epochs'].max
+         rollouts = pkt['Rollouts'].max
+         updates  = pkt['Updates'].max
 
-         self.perf.title('Epochs: {}, Rollouts: {}, Updates: {}'.format(
+         self.perf.title('Epochs: {}, Rollouts: {}, Updates: {} (n/s)'.format(
                epochs, rollouts, updates))
 
+      if 'Agent' in packet:
+         data = packet['Agent']
          for k, v in data.items():
             self.len = max(self.len, len(k))
             if k not in self.stats:
@@ -140,7 +155,7 @@ if __name__ == '__main__':
    #Experiment + command line args specify configuration
    #Trinity specifies Cluster-Server-Core infra modules
    config  = Experiment('pop', Config).init()
-   trinity = Trinity(Cluster, Pantheon, God, Sword, TestQuill)
+   trinity = Trinity(Cluster, Pantheon, God, Sword, Quill)
    args    = parseArgs(config)
 
    bars = LogBars()
@@ -153,7 +168,7 @@ if __name__ == '__main__':
 
    #Train until AGI emerges
    trinity.init(config, args, Policy)
-   workers = trinity.pantheon + trinity.god
+   workers = trinity.pantheon + trinity.god + [trinity.cluster]
    handles = dict((w.step.remote(), w) for w in workers)
 
    while True:
@@ -165,9 +180,7 @@ if __name__ == '__main__':
          k = actor.step.remote()
          handles[k] = actor
       
-      time.sleep(0.25)
+      time.sleep(0.10)
       packet = trinity.quill.step.remote()
       packet = ray.get(packet)
       bars.step(packet)
-
-

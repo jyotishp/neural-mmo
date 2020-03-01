@@ -4,6 +4,7 @@ from copy import deepcopy
 import ray
 import ray.experimental.signal as signal
 
+from forge.blade.lib.utils import printf
 from forge.trinity.ascend import Ascend, runtime, waittime
 
 from forge.ethyr.experience import RolloutManager
@@ -37,7 +38,14 @@ class Sword(Ascend):
       device        = config.DEVICE
       self.config   = config 
 
-      self.net      = projekt.Policy(config).to(device).eval()
+      self.net = projekt.Policy(config).to(device).eval()
+      self.uninit = True
+
+      self.workerName = 'Sword {}'.format(self.idxStr)
+
+   def init(self, trinity):
+      self.trinity = trinity
+      return self.workerName, 'Initialized'
 
    def recvModel(self):
       #Receive weight packets
@@ -47,19 +55,11 @@ class Sword(Ascend):
       #Sync model weights; batch obs; compute forward pass
       if len(packet) > 0:
          setParameters(self.net, packet[-1])
+         if self.uninit:
+            self.uninit = False
+            printf(self.workerName, 'Received Model')
 
       return packet
-
-   def init(self, trinity):
-      self.trinity = trinity
-      #############################################################
-      #Note: TIMEOUT NOT BEING APPLIED AND IS NEEDED TO INIT MODEL#
-      #############################################################
-      packet = self.recvModel()
-      assert len(packet) > 0
-
-   def run(self):
-      pass
 
    @waittime
    def sync(self, packet):
@@ -80,6 +80,9 @@ class Sword(Ascend):
          grads   : A vector of gradients aggregated across trajectories
          summary : A BlobSummary object logging agent statistics
       '''   
+      #Sync model
+      self.recvModel()
+
       #Compute forward pass
       self.net(packet, None)
 

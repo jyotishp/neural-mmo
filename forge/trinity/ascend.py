@@ -2,6 +2,8 @@ from pdb import set_trace as T
 
 import ray, time
 
+from forge.blade.lib.utils import printf
+
 import os
 from collections import defaultdict
 from queue import Queue, Empty
@@ -31,8 +33,7 @@ class Timed:
    def logs(self):
       run, wait = self.time
       self.resetLogs()
-      ret = {self.name: Log(run, wait)}
-      return ret
+      return Log(run, wait)
 
 class Log:
    '''Performance logging superclass
@@ -113,6 +114,7 @@ class Ascend(Timed):
       self.queue = AsyncQueue()
       self.config = config
       self.idx    = idx
+      self.idxStr = str(idx).zfill(3)
 
    def run(disciples):
       if type(disciples) != list:
@@ -121,7 +123,7 @@ class Ascend(Timed):
       for d in disciples:
          Ascend.localize(d.run)()
 
-   def init(disciples, trinity, asynchronous=False):
+   def init(disciples, trinity, asynchronous=False, printRets=True):
       if type(disciples) != list:
          disciples = [disciples]
 
@@ -131,7 +133,10 @@ class Ascend(Timed):
          rets.append(init(trinity))
       
       if not asynchronous:
-         Ascend.get(rets)
+         statements = Ascend.get(rets)
+         if printRets:
+            for header, content in statements:
+               printf(header, content)
 
    def proselytize(disciple, config, n, *args):
       disciple = Ascend.localize(disciple)

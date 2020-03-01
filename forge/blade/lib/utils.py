@@ -6,6 +6,9 @@ import numpy as np
 from queue import Queue as NonIterableQueue
 from queue import Empty
 
+def printf(header, content, pad=15):
+   print('['+ header.center(pad) + ']: ' + content)
+
 class Queue(NonIterableQueue):
    def __iter__(self):
       while True:

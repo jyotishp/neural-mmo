@@ -64,8 +64,95 @@ class Logger:
       self.tick += 1                                                          
       self.middleman.setData.remote(data)
 
+class BlobSummary:
+   def __init__(self):
+      self.nRollouts = 0
+      self.nUpdates  = 0
+
+      self.lifetime = []
+      self.reward   = [] 
+      self.value    = []
+
+   def add(self, blobs):
+      for blob in blobs:
+         self.nRollouts += blob.nRollouts
+         self.nUpdates  += blob.nUpdates
+
+         self.lifetime += blob.lifetime
+         self.reward   += blob.reward
+         self.value    += blob.value
+
+      return self
+
+#Agent logger
+class Blob:
+   def __init__(self, entID, annID, lifetime, exploration): 
+      self.exploration = exploration
+      self.lifetime    = lifetime
+
+      self.entID = entID 
+      self.annID = annID
+
 #Static blob analytics
 class InkWell:
+   def __init__(self):
+      self.util = defaultdict(lambda: defaultdict(list))
+      self.stat = defaultdict(lambda: defaultdict(list))
+
+   def summary(self):
+      return
+
+   def step(self, utilization, statistics):
+      self.utilization(utilization)
+      self.statistics(statistics)
+
+   def statistics(self, logs):
+      for rollouts, updates in logs['Pantheon_Updates']:
+         self.stat['Performance']['Epochs'].append(1)
+         self.stat['Performance']['Rollouts'].append(rollouts)
+         self.stat['Performance']['Updates'].append(updates)
+
+      for blobs in logs['Realm_Logs']:
+         for blob in blobs:
+            #self.stat['Blobs'].append(blob)
+            self.stat['Agent']['Population'].append(len(blobs))
+            self.stat['Agent']['Lifetime'].append(blob.lifetime)
+            for tile, count in blob.exploration.items():
+               self.stat['Agent'][tile].append(count)
+
+   def utilization(self, logs):
+      for k, vList in logs.items():
+         for v in vList:
+            self.util[k]['run'].append(v.run)
+            self.util[k]['wait'].append(v.wait)
+            #self.util[k]['percent'].append(v.run / (v.run + v.wait))
+
+   def summary(self):
+      summary = defaultdict(dict)
+      for log, vDict in self.stat.items():
+         for k, v in vDict.items():
+            if log not in self.stat:
+               continue
+            stat = Stat()
+            val, mmax = v[-1], max(v)
+            stat.val = val
+            stat.max = mmax
+            if 0==val==mmax:
+               stat.percentage = 0
+            else:
+               stat.percentage = val / (val + mmax)
+            summary[log][k] = stat
+      
+      for log, vDict in self.util.items():
+         for k, v in vDict.items():
+            if log not in self.util:
+               continue
+            stat = Stat()
+            stat.val = v[-1]
+            stat.max = max(v)
+            summary[log][k] = stat
+      return summary
+            
    def unique(blobs):
       tiles = defaultdict(list)
       for blob in blobs:
@@ -99,39 +186,11 @@ class InkWell:
    def value(blobs):
       return {'value': [blob.value for blob in blobs]}
 
-class BlobSummary:
-   def __init__(self):
-      self.nRollouts = 0
-      self.nUpdates  = 0
-
-      self.lifetime = []
-      self.reward   = [] 
-      self.value    = []
-
-   def add(self, blobs):
-      for blob in blobs:
-         self.nRollouts += blob.nRollouts
-         self.nUpdates  += blob.nUpdates
-
-         self.lifetime += blob.lifetime
-         self.reward   += blob.reward
-         self.value    += blob.value
-
-      return self
-
-#Agent logger
-class Blob:
-   def __init__(self, entID, annID, lifetime, exploration): 
-      self.exploration = exploration
-      self.lifetime    = lifetime
-
-      self.entID = entID 
-      self.annID = annID
-
 @ray.remote
-class TestQuill(Ascend):
+class Quill(Ascend):
    def __init__(self, config, idx):
       super().__init__(config, 0)
+      self.inkwell = InkWell()
       self.config     = config
       self.stats      = defaultdict(Stat)
       self.epochs     = 0
@@ -140,161 +199,21 @@ class TestQuill(Ascend):
 
    def init(self, trinity):
       self.trinity = trinity
-
-   def run(self):
-      while True:
-         self.step()
-
-   def percent(utilization):
-      run, wait = self.log(utilization)
-      if run == 0:
-         percent = 0
-      else:
-         percent = run / (run + wait) 
-
-   def init(self, trinity):
-      self.trinity = trinity
-
-   def log(self, logs):
-      if len(logs) == 0:
-         return 0
-
-      runs, waits = [], []
-      for log in logs:
-         for k, v in log.items():
-            runs.append(v.run)
-            waits.append(v.wait)
-
-      run  = np.mean(runs)
-      wait = np.mean(waits)
-
-      if run == 0:
-         percent = 0
-      else:
-         percent = run / (run + wait)
-
-      return percent
+      return 'Quill', 'Initialized'
 
    def step(self):
-      pantheonLogs = self.recv('Pantheon_Updates')
-      godLogs      = self.recv('God_Logs')
-      godLogs      = self.recv('Realm_Logs')
-      
-      data = defaultdict(list)
+      utilization, statistics = {}, {}
 
-      for log in godLogs:
-         if len(log) > 0:
-            data['population'].append(len(log))
-         for blob in log:
-            data['lifetime'].append(blob.lifetime)
-            for tile, count in blob.exploration.items():
-               data[tile].append(count)
+      #Utilization
+      for key in 'Pantheon God Sword'.split():
+         utilization[key] = self.recv(key + '_Utilization')
 
-      for key, val in data.items():
-         if len(val) == 0:
-            val = 0
-         else:
-            val = np.mean(val)
-
-         self.stats[key].val = val
-         if val > self.stats[key].max:
-            self.stats[key].max = val
-
-      for rollouts, updates in pantheonLogs:
-         self.epochs   += 1
-         self.rollouts += rollouts
-         self.updates  += updates
-
-      util = {}
-      util['Updates'] = (self.epochs, self.rollouts, self.updates)
-
-      logs = self.recv('Pantheon_Utilization')
-      logs = [e for e in logs]
-      util['Pantheon'] = self.log(logs)
-      
-      logs = self.recv('God_Utilization')
-      logs = [e for e in logs]
-      util['God'] = self.log(logs)
-
-      logs = self.recv('Sword_Utilization')
-      logs = [e for e in logs]
-      util['Sword'] = self.log(logs)
-
-      if len(data) > 0:
-         util['Performance'] = self.stats
+      #Statistics
+      for key in 'Pantheon_Updates God_Logs Realm_Logs'.split():
+         statistics[key] = self.recv(key)
  
-      return util
-
-class Quill:
-   def __init__(self, config):
-      self.config = config
-      modeldir = config.MODELDIR
-
-      self.time = time.time()
-      self.dir = modeldir
-
-      self.curUpdates  = 0
-      self.curRollouts = 0
-      self.nUpdates    = 0
-      self.nRollouts   = 0
-
-      try:
-         os.remove(modeldir + 'logs.p')
-      except:
-         pass
-
-      if config.LOG:
-         middleman   = visualizer.Middleman.remote()
-         self.logger = Logger(middleman)
-         vis         = visualizer.BokehServer.remote(middleman, self.config)
- 
-   def timestamp(self):
-      cur = time.time()
-      ret = cur - self.time
-      self.time = cur
-      return str(ret)
-
-   def stats(self):
-      updates  = 'Updates:  (Total) ' + str(self.nUpdates)
-      rollouts = 'Rollouts: (Total) ' + str(self.nRollouts)
-
-      padlen   = len(updates)
-      updates  = updates.ljust(padlen)  
-      rollouts = rollouts.ljust(padlen) 
-
-      updates  += '  |  (Epoch) ' + str(self.curUpdates)
-      rollouts += '  |  (Epoch) ' + str(self.curRollouts)
-
-      return updates + '\n' + rollouts
-
-   def scrawl(self, logs):
-      #Collect experience information
-      self.nUpdates      += logs.nUpdates
-      self.nRollouts     += logs.nRollouts
-      self.curUpdates    =  logs.nUpdates
-      self.curRollouts   =  logs.nRollouts
-
-      self.value_mean    = np.mean(logs.value)
-      self.reward_mean   = np.mean(logs.reward)
-      self.lifetime_mean = np.mean(logs.lifetime)
-
-      self.value_std     = np.std(logs.value)
-      self.reward_std    = np.std(logs.reward)
-      self.lifetime_std  = np.std(logs.lifetime)
-
-      print('Value Function: ', self.value_mean)
-
-      return self.stats(), self.lifetime_mean
-
-   def latest(self):
-      return self.lifetime_mean, self.reward_mean
-
-   def save(self, blobs):
-      with open(self.dir + 'logs.p', 'ab') as f:
-         pickle.dump(blobs, f)
-
-   def scratch(self):
-      pass
+      self.inkwell.step(utilization, statistics)
+      return self.inkwell.summary()
 
 #Log wrapper and benchmarker
 class Benchmarker:

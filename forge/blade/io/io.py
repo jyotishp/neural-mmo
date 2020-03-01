@@ -118,9 +118,12 @@ class IO:
       if clientHash is None:
          clientHash=lambda x: 0
 
-      for done in dones:
-         idx = clientHash(done)
-         inputs[idx].dones.append(done)
+      for ent in dones:
+         annID, entID, realmID = ent.annID, ent.entID, ent.realmID
+         key = (annID, entID, realmID)
+ 
+         idx = clientHash(entID)
+         inputs[idx].dones.append(key)
 
       ### Process inputs
       n = 0

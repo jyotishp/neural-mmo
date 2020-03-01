@@ -15,14 +15,12 @@ class Cluster(Ascend):
       super().__init__(config, 0)
       #Train until AGI emerges
       self.model = Model(policy, config)
-      self.model.printParams()
 
-   def sendModel(self, perf):
+   def sendModel(self):
       weights = getParameters(self.model.net)
       dones   = [Ascend.send(dest, weights, 'Model')
             for dest in (self.trinity.pantheon, self.trinity.sword)]
-      Ascend.send(self.trinity.quill, perf, 'Perf')
-      Ascend.get(dones)
+      return dones
 
    def log(self, logs):
       if len(logs) > 0:
@@ -41,13 +39,17 @@ class Cluster(Ascend):
  
    def init(self, trinity):
       self.trinity = trinity
-      self.sendModel()
+      dones = self.sendModel()
+      Ascend.get(dones)
 
-   def run(self):
-      while True:
-         grads = self.recv('Gradients')
-         grads = [e for e in grads]
+      n = self.model.nParams()/1000
+      return 'Cluster',  'Initialized {}k Parameter Model'.format(n)
 
-         if len(grads) > 0:                                                   
-            perf = self.model.step(grads, [], [], 0.0)
-            self.sendModel(perf)
+   def step(self):
+      grads = self.recv('Gradients')
+      grads = [e for e in grads]
+
+      if len(grads) > 0:                                                   
+         perf = self.model.step(grads, [], [], 0.0)
+         Ascend.send(self.trinity.quill, perf, 'Perf')
+         self.sendModel()

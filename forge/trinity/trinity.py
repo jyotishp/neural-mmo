@@ -1,9 +1,9 @@
 from pdb import set_trace as T
 
+import time
 import os
 
 from forge.blade import lib
-#from forge.blade.lib.log import BlobSummary
 
 from forge.trinity.ascend import Ascend, runtime, waittime, Log
 from forge.trinity.timed import Summary
@@ -68,7 +68,7 @@ class Trinity():
       self.cluster  = Ascend.proselytize(
             self.cluster,
             config, 1, policy)[0]
-      acolytes = [self.quill, self.cluster]
+      acolytes = [self.cluster, self.quill]
       
       ###Remote trinity workers
       self.pantheon = Ascend.proselytize(

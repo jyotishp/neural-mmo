@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 
 from forge.blade.lib.log import BlobSummary
+from forge.blade.lib.utils import printf
 
 from forge.ethyr.torch import Model
 from forge.trinity.ascend import Ascend, runtime, waittime
@@ -17,11 +18,11 @@ from forge.ethyr.torch.param import getParameters, setParameters
 
 import projekt
 
-@ray.remote(num_gpus=1)
+@ray.remote#(num_gpus=1)
 class Pantheon(Ascend):
    '''Cluster level infrastructure layer
 
-   This module aggregates gradients across all server level 
+  This module aggregates gradients across all server level 
    environments and updates model weights using Adam.
 
    It also demonstrates logging and snapshotting functionality 
@@ -41,9 +42,12 @@ class Pantheon(Ascend):
       self.rollouts = {}                                                      
       self.n        = 0
 
+      self.uninit  = True 
       device       = config.DEVICE
       self.net     = projekt.Policy(config).to(device)
       self.manager = RolloutManager(config)
+
+      self.workerName = 'Pantheon {}'.format(self.idxStr)
 
    def recvModel(self):
       packets = self.recv('Model')
@@ -51,6 +55,10 @@ class Pantheon(Ascend):
       if len(packets) > 0:
          weights = packets[-1]
          setParameters(self.net, weights)
+
+         if self.uninit:
+            self.uninit = False
+            printf(self.workerName, 'Received Model')
 
    @waittime
    def recvExperience(self):
@@ -63,6 +71,7 @@ class Pantheon(Ascend):
 
    def init(self, trinity):
       self.trinity = trinity
+      return self.workerName, 'Initialized'
 
    @runtime
    def step(self):
@@ -75,6 +84,7 @@ class Pantheon(Ascend):
          log   : Dictionary of logs containing infrastructure usage data
       ''' 
       self.recvModel()
+
       trinity = self.trinity
       for packet in self.recvExperience():
          self.manager.collectInputs(packet)
@@ -86,8 +96,6 @@ class Pantheon(Ascend):
             self.rollouts[k] = rollout
             self.n += rollout.time
 
-      time.sleep(0.1)
-      Ascend.send(trinity.quill, self.logs(), 'Pantheon_Utilization')
       if self.n > self.config.SERVER_UPDATES:
          rollouts      = self.rollouts
          self.rollouts = {}
@@ -95,7 +103,10 @@ class Pantheon(Ascend):
          optim.backward(rollouts, self.config)                                
          grads = self.net.grads() 
 
+         update = (len(rollouts), self.n)
          Ascend.send(trinity.cluster, grads, 'Gradients')
-         Ascend.send(trinity.quill, (len(rollouts), self.n), 'Pantheon_Updates')
+         Ascend.send(trinity.quill, update, 'Pantheon_Updates')
+         Ascend.send(trinity.quill, self.logs(), 'Pantheon_Utilization')
          self.n = 0
+
 
