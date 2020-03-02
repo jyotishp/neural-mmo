@@ -1,24 +1,76 @@
 from pdb import set_trace as T
 from collections import defaultdict
-from forge.blade.lib.enums import Material
-from forge.blade.lib import enums
-from copy import deepcopy
-import os
+from collections import deque
 
+from tqdm import tqdm
 import numpy as np
 import json, pickle
 import time
 import ray
+import os
 
-from tqdm import tqdm
+from forge.blade.lib.utils import EDA
+from forge.blade.lib.enums import Material
+from forge.blade.lib import enums
+from copy import deepcopy
 
 from forge.trinity.ascend import Ascend
 from forge.blade.systems import visualizer
 
+class TimePacket:
+   def __init__(self, x):
+      self.time = time.time()
+      self.val  = x
+
+class TimeQueue:
+   def __init__(self, tMinutes=10):
+      self.histLen = 60*tMinutes
+      self.data    = deque()
+
+   def update(self, x):
+      t = time.time()
+      packet = TimePacket(x)
+      self.data.append(packet)
+      
+      #Remove elements that are too old
+      while len(self.data) > 0:
+         pkt = self.data.popleft()
+         if t - pkt.time < self.histLen:
+            self.data.appendleft(pkt)
+            break
+
+   @property
+   def val(self):
+      if len(self.data) < 2:
+         return 0
+
+      t   = self.data[-1].time - self.data[0].time
+      val = sum([e.val for e in self.data])
+      return val / t 
+
 class Stat:
-   def __init__(self):
-      self.val = 0
-      self.max = 0
+   def __init__(self, k=0.99):
+      self.data = []
+      self.min  = np.inf
+      self.max  = -np.inf
+      self.eda  = EDA(k)
+      self.val  = 0
+
+   def update(self, x, add=False):
+      if add:
+         x = self.val + x
+
+      self.val = x
+      self.eda.update(x)
+      #self.data.append(x)
+      if x < self.min:
+         self.min = x
+      if x > self.max:
+         self.max = x
+
+   @property
+   def summary(self):
+      return self.eda.eda
 
 class Bar(tqdm):
    def __init__(self, position=0, title='title', form=None):
@@ -96,8 +148,8 @@ class Blob:
 #Static blob analytics
 class InkWell:
    def __init__(self):
-      self.util = defaultdict(lambda: defaultdict(list))
-      self.stat = defaultdict(lambda: defaultdict(list))
+      self.util = defaultdict(lambda: defaultdict(Stat))
+      self.stat = defaultdict(lambda: defaultdict(Stat))
 
    def summary(self):
       return
@@ -107,49 +159,44 @@ class InkWell:
       self.statistics(statistics)
 
    def statistics(self, logs):
-      for rollouts, updates in logs['Pantheon_Updates']:
-         self.stat['Performance']['Epochs'].append(1)
-         self.stat['Performance']['Rollouts'].append(rollouts)
-         self.stat['Performance']['Updates'].append(updates)
+      for rollouts, updates, nPkt in logs['Pantheon_Updates']:
+         performance = self.stat['Performance']
+         performance['Epochs'].update(1, add=True)
+         performance['Rollouts'].update(rollouts, add=True)
+         performance['Packets'].update(nPkt)
+         performance['Updates'].update(updates, add=True)
+
+         t = 'Time'
+         if t not in performance:
+            performance[t] = TimeQueue()
+         performance[t].update(updates)
 
       for blobs in logs['Realm_Logs']:
          for blob in blobs:
             #self.stat['Blobs'].append(blob)
-            self.stat['Agent']['Population'].append(len(blobs))
-            self.stat['Agent']['Lifetime'].append(blob.lifetime)
+            self.stat['Agent']['Population'].update(len(blobs))
+            self.stat['Agent']['Lifetime'].update(blob.lifetime)
             for tile, count in blob.exploration.items():
-               self.stat['Agent'][tile].append(count)
+               self.stat['Agent'][tile].update(count)
 
    def utilization(self, logs):
       for k, vList in logs.items():
          for v in vList:
-            self.util[k]['run'].append(v.run)
-            self.util[k]['wait'].append(v.wait)
-            #self.util[k]['percent'].append(v.run / (v.run + v.wait))
+            self.util[k]['run'].update(v.run)
+            self.util[k]['wait'].update(v.wait)
 
    def summary(self):
       summary = defaultdict(dict)
       for log, vDict in self.stat.items():
-         for k, v in vDict.items():
+         for k, stat in vDict.items():
             if log not in self.stat:
                continue
-            stat = Stat()
-            val, mmax = v[-1], max(v)
-            stat.val = val
-            stat.max = mmax
-            if 0==val==mmax:
-               stat.percentage = 0
-            else:
-               stat.percentage = val / (val + mmax)
             summary[log][k] = stat
-      
+     
       for log, vDict in self.util.items():
-         for k, v in vDict.items():
+         for k, stat in vDict.items():
             if log not in self.util:
                continue
-            stat = Stat()
-            stat.val = v[-1]
-            stat.max = max(v)
             summary[log][k] = stat
       return summary
             

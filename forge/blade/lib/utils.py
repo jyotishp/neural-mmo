@@ -146,6 +146,7 @@ class BenchmarkTimer:
    def __init__(self):
       self.eda = EDA() 
       self.accum = 0
+
    def startRecord(self):
       self.start = time.time()
 

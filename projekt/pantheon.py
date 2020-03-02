@@ -67,7 +67,7 @@ class Pantheon(Ascend):
       for pkt in packets:
          if pkt.source % self.config.NPANTHEON == self.idx:
             returns.append(pkt)
-      return returns  
+      return returns, len(returns)
 
    def init(self, trinity):
       self.trinity = trinity
@@ -86,7 +86,8 @@ class Pantheon(Ascend):
       self.recvModel()
 
       trinity = self.trinity
-      for packet in self.recvExperience():
+      packets, nPkt = self.recvExperience()
+      for packet in packets:
          self.manager.collectInputs(packet)
          self.net(packet, self.manager)
          rollouts, _ = self.manager.step()
@@ -103,7 +104,7 @@ class Pantheon(Ascend):
          optim.backward(rollouts, self.config)                                
          grads = self.net.grads() 
 
-         update = (len(rollouts), self.n)
+         update = (len(rollouts), self.n, nPkt)
          Ascend.send(trinity.cluster, grads, 'Gradients')
          Ascend.send(trinity.quill, update, 'Pantheon_Updates')
          Ascend.send(trinity.quill, self.logs(), 'Pantheon_Utilization')

@@ -156,18 +156,12 @@ class Ascend(Timed):
          dests = [dests]
 
       for dst in dests:
-         try:
-            dst.put.remote(packet, key)
-         except Exception as e:
-            print('Error at {}: {}'.format(dst, e))
+         put = Ascend.localize(dst.put)
+         put(packet, key)
       return True
 
    def recv(self, key):
       return self.queue.get(key)
-      #if type(ret) != list or (type(ret) == list and ret != []):
-      #   print('Recv Key: {}, Value: {}'.format(key, ret))
-      #if type(ret) != list:
-      #   print('############### Recv Key: {}, Type: {}'.format(key, ret))
 
    def distribute(disciples, *args, shard=None):
       arg, rets = args, []
@@ -199,21 +193,37 @@ class Ascend(Timed):
    def discipleLogs(self):
       logs = []
       for e in self.disciples:
-         log = e.logs
-         try:
-            log = ray.get(log.remote())
-         except:
-            log = log()
+         logf = Ascend.localize(e.logs)
+         log = logf()
          logs.append(log)
 
       logs = Log.summary(logs)
       return logs
 
    def get(rets):
-      try:
-         return ray.get(rets)
-      except Exception as e:
-         return rets
+      remoteObjs = []
+      remoteIdxs = []
+      localIdxs  = []
+
+      #Filter by local/remote
+      for idx, obj in enumerate(rets):
+         if Ascend.isRemote(obj):
+            remoteIdxs.append(idx)
+            remoteObjs.append(obj)
+         else:
+            localIdxs.append(idx)
+
+      #Gather local objects
+      synchronized = [None for _ in rets]
+      for idx in localIdxs:
+         synchronized[idx] =  rets[idx]
+
+      #Gather remote objects
+      remoteObjs   = ray.get(remoteObjs)
+      for idx, obj in zip(remoteIdxs, remoteObjs):
+         synchronized[idx] = obj
+
+      return synchronized
 
    def localize(obj):
       remote = Ascend.isRemote(obj) 
@@ -226,8 +236,13 @@ class Ascend(Timed):
       #Remote function
       if hasattr(obj, 'remote'):
          return True
+
       #Remote actor
       if hasattr(obj, '__ray_checkpoint__'):
+         return True
+
+      #Remote function call return
+      if type(obj) == ray._raylet.ObjectID:
          return True
 
       #Local function or actor

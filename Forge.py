@@ -94,7 +94,10 @@ def render(trinity, config, args):
 class LogBars:
    def __init__(self):
       self.perf     = Bar(title='', position=0,
-            form='[Elapsed: {elapsed}] {desc}')
+            form='[{elapsed}] {desc}')
+      self.stat = 'Epochs: {}, Agents: {}, Actions: {} ({:.1f}/s, {:.1f} queue)'
+      self.perf.title(self.stat.format(0, 0, 0, 0, 0))
+
       self.pantheon = Bar(title='Pantheon', position=1)
       self.god      = Bar(title='God     ', position=2)
       self.sword    = Bar(title='Sword   ', position=3)
@@ -119,22 +122,25 @@ class LogBars:
          if k not in packet:
             continue
          pkt = packet[k]
-         run  = pkt['run'].val
-         wait = pkt['wait'].val
+         run  = pkt['run'].summary
+         wait = pkt['wait'].summary
          if 0 == run == wait:
             continue
          else:
             percent = run / (run + wait)
             self.log(percent, b)
 
+      self.perf.refresh()
       if 'Performance' in packet:
          pkt      = packet['Performance']
-         epochs   = pkt['Epochs'].max
-         rollouts = pkt['Rollouts'].max
-         updates  = pkt['Updates'].max
+         epochs   = pkt['Epochs'].val
+         rollouts = pkt['Rollouts'].val
+         updates  = pkt['Updates'].val
+         nPkt     = pkt['Packets'].val
+         perf     = pkt['Time'].val
 
-         self.perf.title('Epochs: {}, Rollouts: {}, Updates: {} (n/s)'.format(
-               epochs, rollouts, updates))
+         self.perf.title(self.stat.format(
+               epochs, rollouts, updates, perf, nPkt))
 
       if 'Agent' in packet:
          data = packet['Agent']
@@ -148,7 +154,7 @@ class LogBars:
             l = str(self.len)
             bar.title(
                   ('   {: <'+l+'}: {:.2f}<{:.2f}'
-                  ).format(k.capitalize(), v.val, v.max))
+                  ).format(k.capitalize(), v.summary, v.max))
 
 
 if __name__ == '__main__':
