@@ -27,11 +27,11 @@ class Config(config.Config):
 
    ###############################Distributed infrastructure config
    NPANTHEON = 1                #Number of optimizers
-   NGOD      = 2                #Number of environment servers
-   NSWORD    = 2                #Number of clients per server
+   NGOD      = 4                #Number of environment servers
+   NSWORD    = 1                #Number of clients per server
    NCORE     = 12               #Number of cores per machine
 
-   _ = 256
+   _ = 1
    CLUSTER_UPDATES = _          #Number of samples per optim
    SERVER_UPDATES  = _ // NGOD  #step at each hardware layer
 

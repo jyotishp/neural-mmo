@@ -52,13 +52,13 @@ class Output(nn.Module):
             if not self.config.TEST and manager is not None:
                atnsIdx = obs.atn.actions[atn].idxs[arg]
                manager.collectOutputs(name, obs.keys, atns, atnsIdx, values)
+            else:
+               atnsIdx = atnsIdx.cpu().numpy().tolist()
 
             #Convert from local index over atns to
             #absolute index into entity lookup table
             mapping = obs.lookup.back
-            idxs = atnsIdx.cpu().numpy().tolist()
-            idxs = [mapping[t[a]] for t, a in zip(tensor, idxs)]
-            #obs.atn.actions[atn].arguments[arg] = idxs
+            idxs = [mapping[t[a]] for t, a in zip(tensor, atnsIdx)]
             obs.atn.actions[atn].args[arg] = idxs
             obs.atn.actions[atn].idxs[arg] = atnsIdx
 

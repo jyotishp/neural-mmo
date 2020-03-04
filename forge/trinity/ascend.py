@@ -156,7 +156,7 @@ class Ascend(Timed):
          dests = [dests]
 
       for dst in dests:
-         put = Ascend.localize(dst.put)
+         put  = Ascend.localize(dst.put)
          put(packet, key)
       return True
 
@@ -201,6 +201,9 @@ class Ascend(Timed):
       return logs
 
    def get(rets):
+      if type(rets) != list:
+         rets = [rets]
+
       remoteObjs = []
       remoteIdxs = []
       localIdxs  = []

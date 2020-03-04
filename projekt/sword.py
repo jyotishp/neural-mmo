@@ -12,7 +12,7 @@ from forge.ethyr.torch.param import setParameters
 
 import projekt
 
-@ray.remote
+@ray.remote(num_gpus=1)
 class Sword(Ascend):
    '''Client level infrastructure demo
 
@@ -34,6 +34,7 @@ class Sword(Ascend):
          idx     : Unused hardware index                                      
       '''
       super().__init__(config, idx)
+      config.DEVICE = 'cuda'
       config        = deepcopy(config)
       device        = config.DEVICE
       self.config   = config 

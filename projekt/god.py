@@ -86,7 +86,7 @@ class God(Ascend):
       Returns:
          clientID: A client membership ID
       '''
-      return self.idx
+      return self.idx % self.config.NSWORD
       return entID % self.config.NSWORD
 
    def distribute(self):

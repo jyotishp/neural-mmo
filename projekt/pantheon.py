@@ -42,10 +42,11 @@ class Pantheon(Ascend):
       self.rollouts = {}                                                      
       self.n        = 0
 
-      self.uninit  = True 
-      device       = config.DEVICE
-      self.net     = projekt.Policy(config).to(device)
-      self.manager = RolloutManager(config)
+      self.uninit   = True 
+      #config.DEVICE = 'cuda'
+      device        = config.DEVICE
+      self.net      = projekt.Policy(config).to(device)
+      self.manager  = RolloutManager(config)
 
       self.workerName = 'Pantheon {}'.format(self.idxStr)
 
@@ -65,6 +66,7 @@ class Pantheon(Ascend):
       packets = self.recv('Experience')
       returns = []
       for pkt in packets:
+         #print('Packet: {}'.format(pkt))
          if pkt.source % self.config.NPANTHEON == self.idx:
             returns.append(pkt)
       return returns, len(returns)
@@ -101,11 +103,11 @@ class Pantheon(Ascend):
          rollouts      = self.rollouts
          self.rollouts = {}
 
-         optim.backward(rollouts, self.config)                                
-         grads = self.net.grads() 
+         #optim.backward(rollouts, self.config)                                
+         #grads = self.net.grads() 
 
          update = (len(rollouts), self.n, nPkt)
-         Ascend.send(trinity.cluster, grads, 'Gradients')
+         #Ascend.send(trinity.cluster, grads, 'Gradients')
          Ascend.send(trinity.quill, update, 'Pantheon_Updates')
          Ascend.send(trinity.quill, self.logs(), 'Pantheon_Utilization')
          self.n = 0

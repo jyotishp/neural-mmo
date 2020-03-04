@@ -1,5 +1,6 @@
 from pdb import set_trace as T                                                
 import numpy as np
+import time
                                                                               
 import ray                                                                    
 from forge.blade.lib.log import BlobSummary
@@ -53,3 +54,5 @@ class Cluster(Ascend):
          perf = self.model.step(grads, [], [], 0.0)
          Ascend.send(self.trinity.quill, perf, 'Perf')
          self.sendModel()
+
+      time.sleep(0.1)

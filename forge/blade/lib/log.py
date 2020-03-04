@@ -259,6 +259,7 @@ class Quill(Ascend):
       for key in 'Pantheon_Updates God_Logs Realm_Logs'.split():
          statistics[key] = self.recv(key)
  
+      time.sleep(0.1)
       self.inkwell.step(utilization, statistics)
       return self.inkwell.summary()
 

@@ -174,19 +174,22 @@ if __name__ == '__main__':
 
    #Train until AGI emerges
    trinity.init(config, args, Policy)
-   workers = trinity.pantheon + trinity.god + [trinity.cluster]
+   workers = trinity.pantheon + trinity.god
+   workers.append(trinity.cluster)
+   workers.append(trinity.quill)
    handles = dict((w.step.remote(), w) for w in workers)
+   #handles = [w.step.remote() for w in workers]
 
    while True:
+      #ready = ray.get(handles)
+      #handles = [w.step.remote() for w in workers]
+
       ready, _ = ray.wait(list(handles.keys()))
-      ray.get(ready)
-      for k in ready:
+      rets = ray.get(ready)
+      for k, ret in zip(ready, rets):
          actor = handles[k]
+         if actor is trinity.quill:
+            bars.step(ret)
          del handles[k]
          k = actor.step.remote()
          handles[k] = actor
-      
-      time.sleep(0.10)
-      packet = trinity.quill.step.remote()
-      packet = ray.get(packet)
-      bars.step(packet)
