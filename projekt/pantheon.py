@@ -18,7 +18,7 @@ from forge.ethyr.torch.param import getParameters, setParameters
 
 import projekt
 
-@ray.remote#(num_gpus=1)
+@ray.remote(num_gpus=1)
 class Pantheon(Ascend):
    '''Cluster level infrastructure layer
 
@@ -43,7 +43,7 @@ class Pantheon(Ascend):
       self.n        = 0
 
       self.uninit   = True 
-      #config.DEVICE = 'cuda'
+      config.DEVICE = 'cuda'
       device        = config.DEVICE
       self.net      = projekt.Policy(config).to(device)
       self.manager  = RolloutManager(config)

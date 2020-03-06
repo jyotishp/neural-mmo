@@ -31,7 +31,7 @@ class Realm(core.Realm):
       '''Example override of the reward function'''
       return super().reward(ent)
 
-@ray.remote(num_gpus=0)
+@ray.remote
 class God(Ascend):
    '''Server level infrastructure layer 
 
