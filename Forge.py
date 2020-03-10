@@ -37,7 +37,7 @@ from forge.ethyr.torch import Model
 from forge.ethyr.torch.param import getParameters
 
 from experiments import Experiment, Config
-from projekt import Cluster, Pantheon, God, Sword, Policy
+from projekt import Cluster, Pantheon, God, Sword, Policy, Evaluator
 
 def parseArgs(config):
    '''Processes command line arguments'''
@@ -80,16 +80,13 @@ def render(trinity, config, args):
 
    #Instantiate environment and load the model,
    #Pass the tick thunk to a twisted WebSocket server
-   god   = trinity.god.remote(trinity, config, idx=0)
-   model = Model(Policy, config).load(None, config.BEST).weights
-   env   = god.getEnv.remote()
-   god.tick.remote(model)
+   evaluator = Evaluator(config, envIdx=0)
 
    #Start a websocket server for rendering. This requires
    #forge/embyr, which is automatically downloaded from
    #jsuarez5341/neural-mmo-client in scripts/setup.sh
    from forge.embyr.twistedserver import Application
-   Application(env, god.tick.remote)
+   Application(evaluator.env, evaluator.tick)
 
 class LogBars:
    def __init__(self):

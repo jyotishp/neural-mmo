@@ -34,13 +34,12 @@ class StimHook(metaclass=ClassIterable):
                                                                               
    def outputs(self, config):                                                 
       data = {}                                                               
-      for name, cls in self.meta:                                             
-         assert type(name) == tuple and len(name) == 1                        
-         name       = name[0].lower()                                         
-         attr       = self.__dict__[cls.name]                                 
-         data[name] = attr.packet()                                           
-                                                                              
-      return data                                                             
-                                                                              
+      for name, cls in self.nodes:
+         name       = name.lower()
+         attr       = self.__dict__[cls.name]
+         data[name] = attr.packet()
+
+      return data
+
    def packet(self):                                                          
       return self.outputs(self.config)

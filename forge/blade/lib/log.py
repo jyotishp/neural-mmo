@@ -171,10 +171,10 @@ class InkWell:
             performance[t] = TimeQueue()
          performance[t].update(updates)
 
-      for blobs in logs['Realm_Logs']:
+      for blobs, nEnt in logs['Realm_Logs']:
+         self.stat['Agent']['Population'].update(nEnt)
          for blob in blobs:
             #self.stat['Blobs'].append(blob)
-            self.stat['Agent']['Population'].update(len(blobs))
             self.stat['Agent']['Lifetime'].update(blob.lifetime)
             for tile, count in blob.exploration.items():
                self.stat['Agent'][tile].update(count)

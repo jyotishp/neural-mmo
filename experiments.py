@@ -21,14 +21,14 @@ class Config(config.Config):
 
    ###############################Train/test mode settings
    DEBUG     = False            #Whether to run with debug settings
-   LOAD      = False            #Load model from file?
-   BEST      = False            #If loading, most recent or highest lifetime?
+   LOAD      = True             #Load model from file?
+   BEST      = True             #If loading, most recent or highest lifetime?
    TEST      = False            #Update the model during run?
 
    ###############################Distributed infrastructure config
-   NPANTHEON = 1                #Number of optimizers
+   NPANTHEON = 2                #Number of optimizers
    NGOD      = 4                #Number of environment servers
-   NSWORD    = 1                #Number of clients per server
+   NSWORD    = 2                #Number of clients per server
    NCORE     = 12               #Number of cores per machine
 
    _ = 1

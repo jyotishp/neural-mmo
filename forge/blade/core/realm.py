@@ -155,7 +155,7 @@ class Realm(Timed):
       return packet
 
    def entLog(self):
-      return self.entLogs
+      return self.entLogs, len(self.desciples)
 
    def act(self, actions):
       '''Execute agent actions

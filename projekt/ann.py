@@ -71,24 +71,14 @@ class Policy(nn.Module):
       #Some shards may not always have data
       if packet.obs.n == 0: return
 
-      t = time.time()
-
       #Run the input network
       observationTensor, entityLookup = self.IO.input(packet)
-      t = time.time() - t
-      #print('Input: ', t)
 
-      t = time.time()
       #Run the main hidden network with unshared population and value weights
       hidden, values = self.hidden(packet, observationTensor)
-      t = time.time() - t
-      #print('Hidden: ', t)
 
-      t = time.time()
       #Run the output network
       self.IO.output(packet, hidden, entityLookup, values,  manager)
-      t = time.time() - t
-      #print('Output: ', t)
 
    def hidden(self, packet, state):
       '''Population-specific hidden network and value function

@@ -66,8 +66,8 @@ class God(Ascend):
       self.config, self.idx     = config, idx
       self.nUpdates, self.grads = 0, []
 
-      self.env      = Realm(config, idx)
-      self.blobs    = BlobSummary()
+      self.env   = Realm(config, idx)
+      self.blobs = BlobSummary()
 
       self.obs, self.rewards, self.dones, _ = self.env.reset()
       self.workerName = 'God+Realm {}'.format(self.idxStr)

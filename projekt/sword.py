@@ -62,10 +62,13 @@ class Sword(Ascend):
 
       return packet
 
+   def optimHash(self):
+      return self.idx % self.config.NPANTHEON
+
    @waittime
    def sync(self, packet):
-      packet.source = self.idx
-      Ascend.send(self.trinity.pantheon, packet, 'Experience')
+      dst = self.optimHash()
+      Ascend.send(self.trinity.pantheon[dst], packet, 'Experience')
 
    @runtime
    def step(self, packet):

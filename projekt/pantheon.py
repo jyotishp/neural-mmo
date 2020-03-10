@@ -18,7 +18,7 @@ from forge.ethyr.torch.param import getParameters, setParameters
 
 import projekt
 
-@ray.remote(num_gpus=1)
+@ray.remote#(num_gpus=1)
 class Pantheon(Ascend):
    '''Cluster level infrastructure layer
 
@@ -43,7 +43,7 @@ class Pantheon(Ascend):
       self.n        = 0
 
       self.uninit   = True 
-      config.DEVICE = 'cuda'
+      #config.DEVICE = 'cuda'
       device        = config.DEVICE
       self.net      = projekt.Policy(config).to(device)
       self.manager  = RolloutManager(config)
@@ -67,8 +67,7 @@ class Pantheon(Ascend):
       returns = []
       for pkt in packets:
          #print('Packet: {}'.format(pkt))
-         if pkt.source % self.config.NPANTHEON == self.idx:
-            returns.append(pkt)
+         returns.append(pkt)
       return returns, len(returns)
 
    def init(self, trinity):
@@ -99,15 +98,19 @@ class Pantheon(Ascend):
             self.rollouts[k] = rollout
             self.n += rollout.time
 
+      if len(packets) == 0:
+         time.sleep(0.1)
+
       if self.n > self.config.SERVER_UPDATES:
          rollouts      = self.rollouts
          self.rollouts = {}
 
-         #optim.backward(rollouts, self.config)                                
-         #grads = self.net.grads() 
+         if not self.config.TEST:
+            optim.backward(rollouts, self.config)
+            grads = self.net.grads()
+            Ascend.send(trinity.cluster, grads, 'Gradients')
 
          update = (len(rollouts), self.n, nPkt)
-         #Ascend.send(trinity.cluster, grads, 'Gradients')
          Ascend.send(trinity.quill, update, 'Pantheon_Updates')
          Ascend.send(trinity.quill, self.logs(), 'Pantheon_Utilization')
          self.n = 0
