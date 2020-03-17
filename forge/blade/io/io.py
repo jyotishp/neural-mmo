@@ -121,14 +121,15 @@ class IO:
          inputs[idx].dones.append(done)
 
       ### Process inputs
-      n = 0
-      for ob, reward in zip(obs, rewards):
-         env, ent = ob
-         idx = clientHash(ent.entID)
-         inputs[idx].key(env, ent, reward, config)
-         stimulus.Dynamic.process(config, inputs[idx], env, ent, serialize)
-         inputs[idx].obs.n += 1
-         n += 1
+      for key, f in zip(stimulus.Dynamic.keys(),
+            stimulus.Dynamic.vals()):
+         n = 0
+         for ob, reward in zip(obs, rewards):
+            env, ent = ob
+            idx = clientHash(ent.entID)
+            inputs[idx].key(env, ent, reward, config)
+            f(inputs[idx], env, ent, key, serialize)
+            n += 1
       
       start = time.time()
       #Index actions

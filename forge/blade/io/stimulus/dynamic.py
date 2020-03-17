@@ -41,6 +41,13 @@ class Stimulus:
 
    The environment returns game objects in observations.
    This class assembles them into usable data packets'''
+   static  = Static.dict()
+   def keys():
+      return 'Entity Tile'.split()
+
+   def vals():
+      return [Stimulus.entity, Stimulus.tile]
+
    def process(config, inp, env, ent, serialize=True):
       '''Utility for preprocessing game observations
 
@@ -58,7 +65,6 @@ class Stimulus:
       #Static handles
       Stimulus.funcNames = 'Entity Tile'.split()
       Stimulus.functions = [Stimulus.entity, Stimulus.tile]
-      Stimulus.static  = Static.dict()
 
       for key, f in zip(Stimulus.funcNames, Stimulus.functions):
          f(inp, env, ent, key, serialize)
@@ -93,6 +99,7 @@ class Stimulus:
    def entity(inp, env, ent, key, serialize=False):
       '''Internal processor for player objects. Always returns self first'''
       ents = []
+      inp.obs.n += 1 #Only inc in entity
       static = Stimulus.static[key]
       for tile in env.ravel():
          for e in tile.ents.values():
