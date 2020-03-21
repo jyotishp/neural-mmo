@@ -26,26 +26,35 @@ class Config(core.Config):
    NPOP    = 8
 
    NREALM  = 256
-   NWORKER = 12
+   NWORKER = 96
 
    EMBED   = 32
-   HIDDEN  = 64
+   HIDDEN  = 16
    WINDOW  = 4
 
-   OPTIM_STEPS = 128
+   OPTIM_STEPS = 256
 
 class Policy(nn.Module):
-   def __init__(self, config, xDim, yDim):
+   def __init__(self, config, xDim, yDim, recur=True):
       super().__init__()
+      self.recur = recur
+      if recur:
+         self.hidden  = nn.LSTM(config.EMBED, config.HIDDEN, batch_first=True)
+      else:  
+         self.hidden = nn.Linear(config.EMBED, config.HIDDEN)
+
       self.embed  = nn.Linear(xDim, config.EMBED)
-      self.hidden = nn.Linear(config.EMBED, config.HIDDEN)
-      #self.hidden  = nn.LSTM(config.EMBED, config.HIDDEN)
       self.action = nn.Linear(config.HIDDEN, yDim)
+      self.state  = None
 
    def forward(self, x):
       x = torch.tensor(x).float()
       x = self.embed(x)
-      x = self.hidden(x)
+      if self.recur:
+          x = x.view(1, 1, -1)
+          x, self.state = self.hidden(x, self.state)
+      else:
+          x = self.hidden(x)
       x = self.action(x)
       return x
 
@@ -136,7 +145,7 @@ class Optim:
          
          print('Time: {}, Reward: {:.2f}'.format(t, np.mean(rewards)))
          grad = grad / len(data)
-         params += 0.0001 * grad
+         params += 0.001 * grad
          param.setParameters(self.net, params)
             
 @ray.remote
@@ -147,6 +156,7 @@ class ToyWorker:
    def reset(self):
       self.net = Policy(self.config, 4, 2).eval()
       self.env = gym.make('CartPole-v0')
+      #self.env = gym.make('MountainCar-v0')
 
    def run(self, params):
       returns = []
@@ -169,6 +179,7 @@ class ToyWorker:
             np.random.seed(seed)
             noise = np.random.randn(len(params))
             param.setParameters(self.net, params + 0.05*noise)
+            self.net.state = None
 
          #Obtain actions
          atn = self.net(ob)
@@ -179,6 +190,8 @@ class ToyWorker:
          ob, reward, done, _ = self.env.step(int(atn))
          rewards.append(reward)
 
+      if len(returns) == 0:
+         returns.append((seed, sum(rewards)))
       return returns
 
 @ray.remote
