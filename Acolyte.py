@@ -32,10 +32,28 @@ class Config(core.Config):
    HIDDEN  = 16
    WINDOW  = 4
 
-   OPTIM_STEPS = 256
+   #ENV         = 'BipedalWalker-v3'
+   #CONTINUOUS  = True
+   #INPUT_DIM   = 24
+   #OUTPUT_DIM  = 4
+
+   #ENV         = 'MountainCarContinuous-v0'
+   #CONTINUOUS  = True
+   #INPUT_DIM   = 2
+   #OUTPUT_DIM  = 1
+
+   ENV         = 'CartPole-v0'
+   CONTINUOUS  = False
+   INPUT_DIM   = 4
+   OUTPUT_DIM  = 2
+
+   OPTIM_STEPS = 1024
+   LR          = 0.0001
+   NOISE_STD   = 0.1
+
 
 class Policy(nn.Module):
-   def __init__(self, config, xDim, yDim, recur=True):
+   def __init__(self, config, xDim, yDim, recur=False):
       super().__init__()
       self.recur = recur
       if recur:
@@ -55,6 +73,7 @@ class Policy(nn.Module):
           x, self.state = self.hidden(x, self.state)
       else:
           x = self.hidden(x)
+          x = torch.relu(x)
       x = self.action(x)
       return x
 
@@ -113,7 +132,10 @@ class ToyEnv:
 class Optim:
    def __init__(self, config):
       self.config  = config
-      self.net     = Policy(config, 4, 2).eval()
+      x, y         = config.INPUT_DIM, config.OUTPUT_DIM
+      self.iter    = 0
+
+      self.net     = Policy(config, x, y).eval()
       self.workers = [ToyWorker.remote(config) for _ in range(config.NWORKER)]
 
    def run(self):
@@ -123,30 +145,38 @@ class Optim:
          params = np.array(params)
          returns = []
 
+         #Launch rollout workers
          t = time.time()
          for worker in self.workers:
             worker.reset.remote()
             ret = worker.run.remote(params)
             returns.append(ret)
+
+         #Synchronize experience
          data = ray.get(returns)
          t = time.time() - t
-
          returns = []
          for dat in data:
             returns += dat
 
+         #Reward normalization
+         entID, rewards = zip(*returns)
+         mean = np.mean(rewards)
+         std  = np.std(rewards)
+         
+         #Gradient estimation
+         rewards = (np.array(rewards) - mean) / std
          grad = np.zeros_like(params)
-         rewards = []
          for entID, reward in returns:
-            rewards.append(reward)
             np.random.seed(entID)
             noise = reward * np.random.randn(len(params))
             grad += noise
          
-         print('Time: {}, Reward: {:.2f}'.format(t, np.mean(rewards)))
-         grad = grad / len(data)
-         params += 0.001 * grad
+         print('Iter: {}, Time: {:2f}, Mean: {:.2f}, Std: {:.2f}'.format(
+                self.iter, t, mean, std))
+         params += config.LR * config.NOISE_STD * grad
          param.setParameters(self.net, params)
+         self.iter += 1
             
 @ray.remote
 class ToyWorker:
@@ -154,9 +184,10 @@ class ToyWorker:
       self.config = config
 
    def reset(self):
-      self.net = Policy(self.config, 4, 2).eval()
-      self.env = gym.make('CartPole-v0')
-      #self.env = gym.make('MountainCar-v0')
+      config   = self.config
+      x, y     = config.INPUT_DIM, config.OUTPUT_DIM
+      self.net = Policy(config, x, y).eval()
+      self.env = gym.make(config.ENV)
 
    def run(self, params):
       returns = []
@@ -165,6 +196,7 @@ class ToyWorker:
       reset = True
       done  = False
 
+      config = self.config
       for _ in range(config.OPTIM_STEPS):
          if done:
             returns.append((seed, sum(rewards)))
@@ -178,16 +210,20 @@ class ToyWorker:
 
             np.random.seed(seed)
             noise = np.random.randn(len(params))
-            param.setParameters(self.net, params + 0.05*noise)
+            param.setParameters(self.net, params + config.NOISE_STD*noise)
             self.net.state = None
 
          #Obtain actions
          atn = self.net(ob)
-         distribution = Categorical(logits=atn)
-         atn = distribution.sample()
+         if config.CONTINUOUS:
+             atn = torch.tanh(atn)
+             atn = atn.detach().numpy().ravel()
+         else:
+             distribution = Categorical(logits=atn)
+             atn = int(distribution.sample())
 
          #Step environment
-         ob, reward, done, _ = self.env.step(int(atn))
+         ob, reward, done, _ = self.env.step(atn)
          rewards.append(reward)
 
       if len(returns) == 0:
