@@ -5,6 +5,7 @@ import time
 import numpy as np
 import ray
 import gym
+import random
 
 from forge.blade import core
 from forge.blade.lib.ray import init
@@ -28,8 +29,8 @@ class Config(core.Config):
    NREALM  = 256
    NWORKER = 96
 
-   EMBED   = 32
-   HIDDEN  = 32
+   EMBED   = 16
+   HIDDEN  = 16
    WINDOW  = 4
 
    OPTIM_STEPS = 1024
@@ -254,9 +255,11 @@ class Worker:
       self.config = config
 
    def reset(self):
-      idx = np.random.randint(self.config.NREALM)
-      self.net = Policy(self.config, 492, 4).eval()
-      self.env = Realm(self.config, idx)
+      idx       = np.random.randint(self.config.NREALM)
+      self.net  = Policy(self.config, 492, 4).eval()
+      self.env  = Realm(self.config, idx)
+      self.seed = random.random()
+      self.idx  = idx
 
    def run(self, params):
       ents, obs, rewards, dones = self.env.reset()
@@ -264,20 +267,22 @@ class Worker:
       for _ in range(config.OPTIM_STEPS):
          #Collect rollouts
          for ent in dones:
-            returns.append((ent.entID, ent.history.timeAlive.val-1))
+            seed = int(1e7 * (self.seed + ent.entID))
+            returns.append((seed, ent.history.timeAlive.val-1))
 
          actions = {}
          for ent, ob in zip(ents, obs):
             #Perturbed rollout. Should salt the entID per realm
-            np.random.seed(ent.entID)
+            seed = int(1e7 * (self.seed + ent.entID))
+            np.random.seed(seed)
             noise = np.random.randn(len(params))
             param.setParameters(self.net, params + config.NOISE_STD*noise)
             atn = self.net(ob)
 
             #Postprocess actions
             distribution = Categorical(logits=atn)
-            atn = distribution.sample()
-            arg = action.Direction.edges[int(atn)]
+            atn = int(distribution.sample())
+            arg = action.Direction.edges[atn]
             actions[ent.entID] = {action.Move: [arg]}
 
          #Step environment
