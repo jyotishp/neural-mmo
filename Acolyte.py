@@ -32,28 +32,42 @@ class Config(core.Config):
    HIDDEN  = 32
    WINDOW  = 4
 
+   OPTIM_STEPS = 1024
+   RENDER      = False
+
+   ENV         = 'NeuralMMO-v1.3'
+   OPTIM_STEPS = 128
+   CONTINUOUS  = False
+   INPUT_DIM   = 492
+   OUTPUT_DIM  = 4
+   NOISE_STD   = 0.1
+   LR          = 0.01
+
+   '''
+   ENV         = 'CartPole-v0'
+   CONTINUOUS  = False
+   INPUT_DIM   = 4
+   OUTPUT_DIM  = 2
+   NOISE_STD   = 0.1
+   LR          = 0.01
+   '''
+
    #ENV         = 'BipedalWalker-v3'
    #CONTINUOUS  = True
    #INPUT_DIM   = 24
    #OUTPUT_DIM  = 4
+   #NOISE_STD   = 0.01
+   #LR          = 0.01
 
    #ENV         = 'MountainCarContinuous-v0'
    #CONTINUOUS  = True
    #INPUT_DIM   = 2
    #OUTPUT_DIM  = 1
-
-   ENV         = 'CartPole-v0'
-   CONTINUOUS  = False
-   INPUT_DIM   = 4
-   OUTPUT_DIM  = 2
-
-   OPTIM_STEPS = 1024
-   LR          = 0.01
-   NOISE_STD   = 0.1
-
+   #NOISE_STD   = 0.01
+   #LR          = 0.01
 
 class Policy(nn.Module):
-   def __init__(self, config, xDim, yDim, recur=True):
+   def __init__(self, config, xDim, yDim, recur=False):
       super().__init__()
       self.recur = recur
       if recur:
@@ -112,7 +126,10 @@ class Optim:
       self.iter    = 0
 
       self.net     = Policy(config, x, y).eval()
-      self.workers = [ToyWorker.remote(config) for _ in range(config.NWORKER)]
+      worker = ToyWorker
+      if config.ENV == 'NeuralMMO-v1.3':
+         worker = Worker
+      self.workers = [worker.remote(config) for _ in range(config.NWORKER)]
 
    def run(self):
       config = self.config
@@ -153,14 +170,31 @@ class Optim:
          #Log statistics
          mean = np.mean(rewards)
          std  = np.std(rewards)
-         print('Iter: {}, Time: {:.2f}, Mean: {:.2f}, Std: {:.2f}'.format(
-                self.iter, t, mean, std))
+         print('Iter: {}, Time: {:.2f}, Rollouts: {},  Mean: {:.2f}, Std: {:.2f}'.format(self.iter, t, n, mean, std))
 
          #Update parameters
          params += config.LR * config.NOISE_STD * grad
          param.setParameters(self.net, params)
          self.iter += 1
-            
+
+         #Rendering
+         if self.iter % 1 != 0 or not config.RENDER:
+            continue
+         env      = gym.make(config.ENV)
+         ob, done = env.reset(), False
+         while not done:
+            env.render()
+            ob, _, _, _ = env.step(atn)
+            #Obtain actions
+            atn = self.net(ob)
+            if config.CONTINUOUS:
+               atn = torch.tanh(atn)
+               atn = atn.detach().numpy().ravel()
+            else:
+               distribution = Categorical(logits=atn)
+               atn = int(distribution.sample())
+
+           
 @ray.remote
 class ToyWorker:
    def __init__(self, config):
@@ -170,6 +204,7 @@ class ToyWorker:
       config   = self.config
       x, y     = config.INPUT_DIM, config.OUTPUT_DIM
       self.net = Policy(config, x, y).eval()
+
       self.env = gym.make(config.ENV)
 
    def run(self, params):
@@ -236,7 +271,7 @@ class Worker:
             #Perturbed rollout. Should salt the entID per realm
             np.random.seed(ent.entID)
             noise = np.random.randn(len(params))
-            param.setParameters(self.net, params + 0.01*noise)
+            param.setParameters(self.net, params + config.NOISE_STD*noise)
             atn = self.net(ob)
 
             #Postprocess actions
