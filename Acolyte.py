@@ -29,7 +29,7 @@ class Config(core.Config):
    NWORKER = 96
 
    EMBED   = 32
-   HIDDEN  = 16
+   HIDDEN  = 32
    WINDOW  = 4
 
    #ENV         = 'BipedalWalker-v3'
@@ -48,12 +48,12 @@ class Config(core.Config):
    OUTPUT_DIM  = 2
 
    OPTIM_STEPS = 1024
-   LR          = 0.0001
+   LR          = 0.01
    NOISE_STD   = 0.1
 
 
 class Policy(nn.Module):
-   def __init__(self, config, xDim, yDim, recur=False):
+   def __init__(self, config, xDim, yDim, recur=True):
       super().__init__()
       self.recur = recur
       if recur:
@@ -105,30 +105,6 @@ class Realm(core.Realm):
 
       return ents, stims, rewards, dones
 
-class ToyEnv:
-   def __init__(self, sz=2):
-      self.reset()
-
-   def reset(self):
-      self.sz  = sz 
-      self.pos = 0
-      return None, self.pos, 0
-
-   def step(self, decisions):
-      assert 0 in decisions
-      atn = decisions[0]
-      if atn == Move.Left:
-         self.pos -= 1
-      else:
-         self.pos += 1 
-
-      reward = 0
-      if self.pos == self.sz:
-         reward = 1
-         done   = True
-
-      return None, self.pos, reward, done
-
 class Optim:
    def __init__(self, config):
       self.config  = config
@@ -159,21 +135,28 @@ class Optim:
          for dat in data:
             returns += dat
 
-         #Reward normalization
+         #Rank transform
          entID, rewards = zip(*returns)
-         mean = np.mean(rewards)
-         std  = np.std(rewards)
-         
+         n              = len(rewards)
+         ranks          = np.empty(n)
+         idxs           = np.argsort(rewards)
+         ranks[idxs]    = np.arange(n)
+         ranks          = ranks/(n-1) - 0.5
+        
          #Gradient estimation
-         rewards = (np.array(rewards) - mean) / std
          grad = np.zeros_like(params)
-         for entID, reward in returns:
+         for entID, reward in zip(entID, ranks):
             np.random.seed(entID)
             noise = reward * np.random.randn(len(params))
             grad += noise
-         
-         print('Iter: {}, Time: {:2f}, Mean: {:.2f}, Std: {:.2f}'.format(
+
+         #Log statistics
+         mean = np.mean(rewards)
+         std  = np.std(rewards)
+         print('Iter: {}, Time: {:.2f}, Mean: {:.2f}, Std: {:.2f}'.format(
                 self.iter, t, mean, std))
+
+         #Update parameters
          params += config.LR * config.NOISE_STD * grad
          param.setParameters(self.net, params)
          self.iter += 1
