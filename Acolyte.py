@@ -36,6 +36,8 @@ class Config(core.Config):
    OPTIM_STEPS = 1024
    RENDER      = False
 
+   #Attains 21 mean lifetime after 30k epochs = 30M lifetimes
+   #Performance remains stable but does not improve by 65k
    ENV         = 'NeuralMMO-v1.3'
    OPTIM_STEPS = 128
    CONTINUOUS  = False
