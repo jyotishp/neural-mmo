@@ -253,18 +253,9 @@ class Config(Template):
 
    ############################################################################
    ### Tile Parameters
-   FOREST_CAPACITY      = 1
-   '''Maximum number of harvests before a forest tile decays'''
-
-   FOREST_RESPAWN       = 0.025
+   FOREST_RESPAWN    = 0.025
    '''Probability that a harvested forest tile will regenerate each tick'''
 
-   OREROCK_CAPACITY     = 1
-   '''Maximum number of harvests before an orerock tile decays'''
-
-   OREROCK_RESPAWN      = 0.05
-   '''Probability that a harvested orerock tile will regenerate each tick'''
- 
    NTILE  = 6
    '''Number of distinct terrain tile types'''
 

@@ -250,6 +250,12 @@ class Env:
       blob.log(ent.loadout.chestplate.level, 'Chestplate')
       blob.log(ent.loadout.platelegs.level,  'Platelegs')
 
+      blob = quill.register('Attack Charges', self.realm.tick,
+            quill.HISTOGRAM, quill.STACKED_AREA, quill.STATS, quill.RADAR)
+      blob.log(ent.inventory.charges.scraps.heldOrUsed,   'Scraps')
+      blob.log(ent.inventory.charges.shavings.heldOrUsed, 'Shavings')
+      blob.log(ent.inventory.charges.shards.heldOrUsed,   'Shards')
+
       blob = quill.register('Exploration', self.realm.tick,
             quill.HISTOGRAM, quill.SCATTER)
       blob.log(ent.history.exploration)
@@ -259,6 +265,10 @@ class Env:
       quill.stat('Skilling',  (ent.skills.fishing.level + ent.skills.hunting.level)/2.0)
       quill.stat('Combat',    combat.level(ent.skills))
       quill.stat('Equipment', ent.loadout.defense)
+      quill.stat('Charges', 
+         ent.inventory.charges.scraps.heldOrUsed +
+         ent.inventory.charges.shavings.heldOrUsed +
+         ent.inventory.charges.shards.heldOrUsed)
       quill.stat('Exploration', ent.history.exploration)
 
    def terminal(self):

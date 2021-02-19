@@ -50,17 +50,11 @@ class Tile:
    def lava(self):
       return self.mat == material.Lava
 
-   @property
-   def static(self):
-      '''No updates needed'''
-      assert self.capacity <= self.mat.capacity
-      return self.capacity == self.mat.capacity
-
    def reset(self, mat, config):
-      self.state  = mat(config)
-      self.mat    = mat(config)
+      self.state    = mat(config)
+      self.mat      = mat(config)
 
-      self.capacity = self.mat.capacity
+      self.depleted = False
       self.tex      = mat.tex
       self.ents     = {}
 
@@ -76,20 +70,24 @@ class Tile:
       del self.ents[entID]
 
    def step(self):
-      if (not self.static and 
-            np.random.rand() < self.mat.respawn):
-         self.capacity += 1
+      if not self.depleted or np.random.rand() >= self.mat.respawn:
+         return
 
-      if self.static:
-         self.state = self.mat
-         self.index.update(self.state.index)
+      self.depleted = False
+      self.state    = self.mat
 
-   def harvest(self):
-      if self.capacity == 0:
+      self.index.update(self.state.index)
+
+   def harvest(self, entity):
+      if self.depleted:
          return False
-      elif self.capacity <= 1:
-         self.state = self.mat.degen(self.config)
-         self.index.update(self.state.index)
-      self.capacity -= 1
+
+      if self.state not in material.Harvestable:
+         return False
+
+      self.state.harvest(entity)
+      self.depleted = True
+      self.state    = self.mat.deplete(self.config)
+      self.index.update(self.state.index)
+
       return True
-      return self.mat.dropTable.roll()

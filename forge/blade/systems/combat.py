@@ -16,8 +16,24 @@ def level(skills):
    final = np.floor(base + 0.5*max(melee, ranged, mage))
    return final
 
+def dev_combat(entity, targ, skillFn):
+   config = entity.config
+   skill  = skillFn(entity)
+   dmg    = damage(skill.__class__, skill.level)
+   
+   if entity.isPlayer and entity.inventory.charges.use(skill):
+      dmg *= 2
+      
+   dmg    = min(dmg, entity.resources.health.val)
+   entity.applyDamage(dmg, skill.__class__.__name__.lower())
+   targ.receiveDamage(entity, dmg)
+   return dmg
+
 def attack(entity, targ, skillFn):
    config      = entity.config
+   if config.DEV_COMBAT:
+      return dev_combat(entity, targ, skillFn)
+
    entitySkill = skillFn(entity)
    targetSkill = skillFn(targ)
 

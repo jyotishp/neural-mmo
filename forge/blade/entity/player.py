@@ -22,7 +22,7 @@ class Player(entity.Entity):
 
       #Submodules
       self.skills     = Skills(self)
-      #self.inventory = Inventory(dataframe)
+      self.inventory  = Inventory(self)
       #self.chat      = Chat(dataframe)
 
       #Update immune

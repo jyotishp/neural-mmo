@@ -16,7 +16,6 @@ class Tool(Item): pass
 
 class Weapon(Item):
    alwaysSucceeds = True
-   createSkill = skill.Smithing
 
 #Used as a stand in when no weapon is present
 class Base(Weapon):

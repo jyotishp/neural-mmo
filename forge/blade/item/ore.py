@@ -2,8 +2,7 @@ from forge.blade.systems import skill
 from forge.blade.item import item
 
 class Ore(item.Item):
-   createSkill = skill.Mining
-   useSkill = skill.Smithing
+   pass
 
 class Copper(Ore):
    createLevel = 1

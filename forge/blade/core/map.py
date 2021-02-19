@@ -50,11 +50,12 @@ class Map:
    def step(self):
       '''Evaluate updatable tiles'''
       for e in self.updateList.copy():
-         if e.static:
+         if not e.depleted:
             self.updateList.remove(e)
          e.step()
 
-   def harvest(self, r, c):
+   def harvest(self, entity):
       '''Called by actions that harvest a resource tile'''
+      r, c = entity.pos
       self.updateList.add(self.tiles[r, c])
-      return self.tiles[r, c].harvest()
+      return self.tiles[r, c].harvest(entity)

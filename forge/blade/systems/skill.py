@@ -61,14 +61,10 @@ class Gathering(SkillGroup):
 
       self.fishing      = Fishing(self)
       self.hunting      = Hunting(self)
-      self.mining       = Mining(self)
 
-class Processing(SkillGroup):
-   def __init__(self, realm):
-      super().__init__(realm)
-
-      self.cooking      = Cooking(self)
-      self.smithing     = Smithing(self)
+      self.prospecting  = Prospecting(self)
+      self.carving      = Carving(self)
+      self.alchemy      = Alchemy(self)
 
 class Combat(SkillGroup):
    def __init__(self, realm):
@@ -100,7 +96,7 @@ class Combat(SkillGroup):
       self.defense.exp      += scale * dmg * 4
 
 
-class Skills(Gathering, Processing, Combat):
+class Skills(Gathering, Combat):
    pass
 
 ### Individual Skills ###
@@ -162,14 +158,15 @@ class NonCombatSkill(Skill):
          self.exp += item.exp
          return True
 
-
 class HarvestingSkill(NonCombatSkill):
-   #Attempt each item from highest to lowest tier until success
-   def harvest(self, inv):
-      for e in self.skillItems:
-         if self.attempt(inv, e):
-            return
+   def update(self, realm, entity):
+      r, c = entity.pos
 
+      if not realm.map.harvest(entity):
+         return
+
+      scale     = self.config.XP_SCALE
+      self.exp += 10 * scale
 
 class Fishing(HarvestingSkill):
    def __init__(self, skillGroup):
@@ -203,8 +200,10 @@ class Hunting(HarvestingSkill):
          food.decrement(1)
 
       r, c = entity.pos
-      if (type(realm.map.tiles[r, c].mat) not in [material.Forest] or
-            not realm.map.harvest(r, c)):
+      if type(realm.map.tiles[r, c].mat) not in [material.Forest]:
+         return
+
+      if not realm.map.harvest(entity):
          return
 
       restore = np.floor(self.level * self.config.RESOURCE_RESTORE)
@@ -213,12 +212,14 @@ class Hunting(HarvestingSkill):
       scale     = self.config.XP_SCALE
       self.exp += scale * restore
 
+class Prospecting(HarvestingSkill):
+   def __init__(self, skillGroup):
+      super().__init__(skillGroup)
 
-class Mining(HarvestingSkill): pass
+class Carving(HarvestingSkill):
+   def __init__(self, skillGroup):
+      super().__init__(skillGroup)
 
-class ProcessingSkill(NonCombatSkill):
-   def process(self, inv, item):
-      self.attempt(inv, item)
-
-class Cooking(ProcessingSkill): pass
-class Smithing(ProcessingSkill): pass
+class Alchemy(HarvestingSkill):
+   def __init__(self, skillGroup):
+      super().__init__(skillGroup)

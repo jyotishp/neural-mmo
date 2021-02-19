@@ -2,6 +2,7 @@ from pdb import set_trace as T
 import numpy as np
 
 import os
+import random
 
 import vec_noise
 from imageio import imread, imsave
@@ -37,6 +38,24 @@ class Save:
 
 class Terrain:
    pass
+
+def spawn(config, tiles, mat):
+   mmin = config.TERRAIN_BORDER
+   mmax = config.TERRAIN_SIZE - config.TERRAIN_BORDER
+
+   r    = random.randint(mmin, mmax)
+   c    = random.randint(mmin, mmax)
+
+   if tiles[r, c] not in {Terrain.GRASS}:
+      spawn(config, tiles, mat)
+   else:
+      tiles[r, c]   = mat
+ 
+def spawnResources(config, tiles):
+   for _ in range(config.SPAWN_PATCHES):
+      spawn(config, tiles, Terrain.ORE) 
+      spawn(config, tiles, Terrain.TREE) 
+      spawn(config, tiles, Terrain.CRYSTAL) 
 
 class MapGenerator:
    def __init__(self, config):
@@ -77,8 +96,11 @@ class MapGenerator:
          prefix = config.PATH_MAPS_SMALL
       elif config.__class__.__name__ == 'LargeMaps':
          prefix = config.PATH_MAPS_LARGE
+      elif config.__class__.__name__ == 'Dev':
+         prefix = config.PATH_MAPS_DEV
       else:
-         prefix = config.PATH_MAPS
+         print('Specify a valid config')
+         system.exit(0)
 
       #Train and eval map indices
       msg    = 'Generating {} training and {} evaluation maps:'
@@ -159,6 +181,10 @@ class MapGenerator:
 
       #Lava border and center crop
       matl[thresh > sz//2 - border] = Terrain.LAVA
+
+      #Dev resource spawns
+      if config.__class__.__name__ == 'Dev':
+         spawnResources(config, matl)
 
       #Grass border or center spawn region
       if mode == 'expand':

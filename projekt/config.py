@@ -41,6 +41,8 @@ class Base(core.Config):
    SCRIPTED_BACKEND        = 'dijkstra' #Or 'dynamic_programming'
    SCRIPTED_EXPLORE        = True       #Intentional exploration
 
+   DEV_COMBAT = False
+
 
 class LargeMaps(Base):
    '''Large scale Neural MMO training setting
@@ -111,6 +113,30 @@ class SmallMaps(Base):
    NPC_SPAWN_NEUTRAL       = 0.60
    NPC_SPAWN_AGGRESSIVE    = 0.80
 
+class Dev(SmallMaps):
+   MODEL                   = 'scripted-combat' 
+
+   NTILE                   = 12
+
+   PATH_MAPS_DEV           = os.path.join(core.Config.PATH_MAPS, 'dev')
+   PATH_MAPS               = PATH_MAPS_DEV
+
+   ORE_RESPAWN       = 0.01
+   '''Probability that a harvested ore tile will regenerate each tick'''
+
+   TREE_RESPAWN      = 0.01
+   '''Probability that a harvested tree tile will regenerate each tick'''
+
+   CRYSTAL_RESPAWN  = 0.01
+   '''Probability that a harvested crystal tile will regenerate each tick'''
+
+   MAX_FOOD = 5
+   '''Number of inventory spaces for food'''
+
+   SPAWN_PATCHES           = 50
+
+   DEV_COMBAT = True
+
 
 class Debug(SmallMaps):
    '''Debug Neural MMO training setting
@@ -127,5 +153,3 @@ class Debug(SmallMaps):
 
    HIDDEN                  = 2
    EMBED                   = 2
-
-

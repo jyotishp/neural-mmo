@@ -4,8 +4,6 @@ from forge.blade.systems import skill
 from forge.blade.item import item, ore
 
 class Armor(item.Item):
-   createSkill = skill.Smithing
-   useSkill = skill.Defense
    alwaysSucceeds = True
    oreReq = 4
    defense = 0
