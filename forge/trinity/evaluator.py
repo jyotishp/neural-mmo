@@ -90,7 +90,6 @@ class Evaluator(Base):
       realm, actions    = self.env.realm, {}
       for agentID in self.obs:
          agent              = realm.players[agentID]
-         agent.skills.style = Action.Range
          actions[agentID]   = self.policy(realm, agent, *self.args)
 
       super().tick(self.obs, actions, pos, cmd, preprocessActions=False)

@@ -6,8 +6,6 @@ from pdb import set_trace as T
 import numpy as np
 import colorsys
 from enum import Enum
-#from forge.blade.item import ore
-from forge.blade import systems
 
 class Defaults:
    BLACK    = (0, 0, 0)

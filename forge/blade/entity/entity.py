@@ -1,7 +1,7 @@
 from pdb import set_trace as T
 import numpy as np
 
-from forge.blade.systems import skill, droptable, combat, equipment
+from forge.blade.systems import skill, droptable, combat, inventory
 from forge.blade.lib import material, utils
 
 from forge.blade.io.action import static as Action
@@ -14,9 +14,25 @@ class Resources:
       self.food   = Static.Entity.Food(  ent.dataframe, ent.entID)
 
    def update(self, realm, entity, actions):
-      self.health.max = entity.skills.constitution.level
-      self.water.max  = entity.skills.fishing.level
-      self.food.max   = entity.skills.hunting.level
+      self.water.max  = entity.skills.water.level
+      self.food.max   = entity.skills.food.level
+
+      config      = realm.config
+      regen       = config.HEALTH_RESTORE
+      thresh      = config.HEALTH_REGEN_THRESHOLD
+
+      foodThresh  = self.food  > thresh * entity.skills.food.level
+      waterThresh = self.water > thresh * entity.skills.water.level
+
+      if foodThresh and waterThresh:
+         restore = np.floor(self.health.max * regen)
+         self.health.increment(restore)
+
+      if self.food.empty:
+         self.health.decrement(1)
+
+      if self.water.empty:
+         self.health.decrement(1)
 
    def packet(self):
       data = {}
@@ -132,15 +148,15 @@ class Entity:
       self.status    = Status(self)
       self.history   = History(self)
       self.resources = Resources(self)
-      self.loadout   = equipment.Loadout()
+      self.inventory = inventory.Inventory(realm)
 
    def packet(self):
       data = {}
 
-      data['status']  = self.status.packet()
-      data['history'] = self.history.packet()
-      data['loadout'] = self.loadout.packet()
-      data['alive']   = self.alive
+      data['status']    = self.status.packet()
+      data['history']   = self.history.packet()
+      data['equipment'] = self.inventory.equipment.packet()
+      data['alive']     = self.alive
 
       return data
 
@@ -158,12 +174,12 @@ class Entity:
       self.resources.health.decrement(dmg)
 
       if not self.alive and source is not None:
-         source.receiveLoot(self.loadout)
+         source.receiveItems(self.inventory.items)
          return False
 
       return True
 
-   def receiveLoot(self, loadout):
+   def receiveItems(self, items):
       pass
 
    def applyDamage(self, dmg, style):

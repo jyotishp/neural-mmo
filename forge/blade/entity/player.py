@@ -1,7 +1,7 @@
 import numpy as np
 from pdb import set_trace as T
 
-from forge.blade.systems import ai, equipment
+from forge.blade.systems import ai
 from forge.blade.lib import material
 
 from forge.blade.systems.skill import Skills
@@ -18,7 +18,15 @@ class Player(entity.Entity):
       self.target = None
       self.food   = None
       self.water  = None
-      self.vision = 7
+      self.initialized = False
+      self.combat      = False
+      self.forage      = False
+      self.resource    = None
+      self.downtime    = None
+
+      #Logs
+      self.buys   = 0
+      self.sells  = 0
 
       #Submodules
       self.skills     = Skills(self)
@@ -59,21 +67,19 @@ class Player(entity.Entity):
       self.resources.water.decrement(dmg)
       self.skills.receiveDamage(dmg)
 
-   def receiveLoot(self, loadout):
-      if loadout.chestplate.level > self.loadout.chestplate.level:
-         self.loadout.chestplate = loadout.chestplate
-      if loadout.platelegs.level > self.loadout.platelegs.level:
-         self.loadout.platelegs = loadout.platelegs
+   def receiveItems(self, items):
+      self.inventory.receiveItems(items)
 
    def packet(self):
       data = super().packet()
 
-      data['entID']    = self.entID
-      data['annID']    = self.population
+      data['entID']     = self.entID
+      data['annID']     = self.population
 
-      data['base']     = self.base.packet()
-      data['resource'] = self.resources.packet()
-      data['skills']   = self.skills.packet()
+      data['base']      = self.base.packet()
+      data['resource']  = self.resources.packet()
+      data['skills']    = self.skills.packet()
+      data['inventory'] = self.inventory.packet()
 
       return data
   

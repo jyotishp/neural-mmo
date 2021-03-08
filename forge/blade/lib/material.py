@@ -1,4 +1,6 @@
 from pdb import set_trace as T
+from forge.blade.systems import droptable
+from forge.blade import item
 
 class Material:
    capacity = 0
@@ -20,6 +22,13 @@ class Water(Material):
    tex      = 'water'
    index    = 1
 
+   def __init__(self, config):
+      self.deplete = __class__
+      self.respawn  = 1.0
+
+   def harvest(self):
+      return droptable.Empty()
+
 class Grass(Material):
    tex      = 'grass'
    index    = 2
@@ -36,8 +45,8 @@ class Forest(Material):
    def __init__(self, config):
       self.respawn  = config.FOREST_RESPAWN
 
-   def harvest(self, entity):
-      pass
+   def harvest(self):
+      return droptable.Empty()
 
 class Stone(Material):
    tex     = 'stone'
@@ -55,8 +64,8 @@ class Ore(Material):
    def __init__(self, config):
       self.respawn  = config.ORE_RESPAWN
 
-   def harvest(self, entity):
-      entity.inventory.charges.scraps.amt += 1
+   def harvest(self):
+      return droptable.Ammunition(item.Scrap) 
 
 class Stump(Material):
    tex     = 'stump'
@@ -70,8 +79,8 @@ class Tree(Material):
    def __init__(self, config):
       self.respawn  = config.TREE_RESPAWN
 
-   def harvest(self, entity):
-      entity.inventory.charges.shavings.amt += 1
+   def harvest(self):
+      return droptable.Ammunition(item.Shaving) 
 
 class Fragment(Material):
    tex     = 'fragment'
@@ -85,8 +94,38 @@ class Crystal(Material):
    def __init__(self, config):
       self.respawn  = config.CRYSTAL_RESPAWN
 
-   def harvest(self, entity):
-      entity.inventory.charges.shards.amt += 1
+   def harvest(self):
+      return droptable.Ammunition(item.Shard) 
+
+class Weeds(Material):
+   tex     = 'weeds'
+   index   = 12
+
+class Herb(Material):
+   tex     = 'herb'
+   index   = 13
+
+   deplete = Weeds
+   def __init__(self, config):
+      self.respawn  = config.HERB_RESPAWN
+
+   def harvest(self):
+      return droptable.Consumable(item.Potion) 
+
+class Ocean(Material):
+   tex     = 'ocean'
+   index   = 14
+
+class Fish(Material):
+   tex     = 'fish'
+   index   = 15
+
+   deplete = Ocean
+   def __init__(self, config):
+      self.respawn  = config.FISH_RESPAWN
+
+   def harvest(self):
+      return droptable.Consumable(item.Food) 
 
 class Meta(type):
    def __iter__(self):
@@ -101,13 +140,13 @@ class All(metaclass=Meta):
    materials = {
       Lava, Water, Grass, Scrub, Forest,
       Stone, Slag, Ore, Stump, Tree,
-      Fragment, Crystal}
+      Fragment, Crystal, Weeds, Herb, Ocean, Fish}
 
 class Impassible(metaclass=Meta):
-   materials = {Lava, Water, Stone}
+   materials = {Lava, Water, Stone, Ocean, Fish}
 
 class Habitable(metaclass=Meta):
-   materials = {Grass, Scrub, Forest, Ore, Tree, Crystal}
+   materials = {Grass, Scrub, Forest, Ore, Tree, Crystal, Weeds, Herb}
 
 class Harvestable(metaclass=Meta):
-   materials = {Forest, Ore, Tree, Crystal}
+   materials = {Water, Forest, Ore, Tree, Crystal, Herb, Fish}

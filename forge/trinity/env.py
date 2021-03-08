@@ -201,6 +201,9 @@ class Env:
       for entID, ent in dead.items():
          self.log(ent)
 
+      #TODO: Figure out how to integrate this into realm
+      self.realm.exchange.step()
+
       #Postprocess dead agents
       if omitDead:
          return obs, rewards, dones, {}
@@ -228,48 +231,78 @@ class Env:
       quill = self.quill
 
       blob = quill.register('Population', self.realm.tick,
-            quill.HISTOGRAM, quill.LINE, quill.SCATTER)
+            quill.HISTOGRAM, quill.INDEX, quill.SCATTER)
       blob.log(self.realm.population)
 
       blob = quill.register('Lifetime', self.realm.tick,
-            quill.HISTOGRAM, quill.LINE, quill.SCATTER, quill.GANTT)
+            quill.HISTOGRAM, quill.INDEX, quill.SCATTER, quill.GANTT)
       blob.log(ent.history.timeAlive.val)
 
-      blob = quill.register('Skill Level', self.realm.tick,
+      blob = quill.register('Basic Skills', self.realm.tick,
             quill.HISTOGRAM, quill.STACKED_AREA, quill.STATS, quill.RADAR)
-      blob.log(ent.skills.range.level,        'Range')
-      blob.log(ent.skills.mage.level,         'Mage')
-      blob.log(ent.skills.melee.level,        'Melee')
-      blob.log(ent.skills.constitution.level, 'Constitution')
-      blob.log(ent.skills.defense.level,      'Defense')
+      blob.log(ent.skills.water.level,        'Water')
+      blob.log(ent.skills.food.level,         'Food')
+
+      blob = quill.register('Harvest Skills', self.realm.tick,
+            quill.HISTOGRAM, quill.STACKED_AREA, quill.STATS, quill.RADAR)
       blob.log(ent.skills.fishing.level,      'Fishing')
       blob.log(ent.skills.hunting.level,      'Hunting')
+      blob.log(ent.skills.prospecting.level,  'Prospecting')
+      blob.log(ent.skills.carving.level,      'Carving')
+      blob.log(ent.skills.alchemy.level,      'Alchemy')
+
+      blob = quill.register('Combat Skills', self.realm.tick,
+            quill.HISTOGRAM, quill.STACKED_AREA, quill.STATS, quill.RADAR)
+      blob.log(ent.skills.melee.level,        'Melee')
+      blob.log(ent.skills.range.level,        'Range')
+      blob.log(ent.skills.mage.level,         'Mage')
 
       blob = quill.register('Equipment', self.realm.tick,
             quill.HISTOGRAM, quill.SCATTER)
-      blob.log(ent.loadout.chestplate.level, 'Chestplate')
-      blob.log(ent.loadout.platelegs.level,  'Platelegs')
+      blob.log(ent.inventory.equipment.hat.level,    'Hat')
+      blob.log(ent.inventory.equipment.top.level,    'Top')
+      blob.log(ent.inventory.equipment.bottom.level, 'Bottom')
+      blob.log(ent.inventory.equipment.weapon.level, 'Weapon')
 
-      blob = quill.register('Attack Charges', self.realm.tick,
-            quill.HISTOGRAM, quill.STACKED_AREA, quill.STATS, quill.RADAR)
-      blob.log(ent.inventory.charges.scraps.heldOrUsed,   'Scraps')
-      blob.log(ent.inventory.charges.shavings.heldOrUsed, 'Shavings')
-      blob.log(ent.inventory.charges.shards.heldOrUsed,   'Shards')
+      #blob = quill.register('Attack Charges', self.realm.tick,
+      #      quill.HISTOGRAM, quill.STACKED_AREA, quill.STATS, quill.RADAR)
+      #blob.log(ent.inventory.charges.scraps.heldOrUsed,   'Scraps')
+      #blob.log(ent.inventory.charges.shavings.heldOrUsed, 'Shavings')
+      #blob.log(ent.inventory.charges.shards.heldOrUsed,   'Shards')
+
+      blob = quill.register('Trades', self.realm.tick,
+            quill.HISTOGRAM, quill.SCATTER)
+      blob.log(ent.sells, 'Sells')
+      blob.log(ent.buys,  'Buys')
+
+      prices = quill.register('Market Prices', self.realm.tick, quill.LINE)
+      levels = quill.register('Market Levels', self.realm.tick, quill.LINE)
+      volume = quill.register('Market Volume', self.realm.tick, quill.LINE)
+      supply = quill.register('Market Supply', self.realm.tick, quill.LINE)
+      value  = quill.register('Market Value',  self.realm.tick, quill.LINE)
+      for item, listing in self.realm.exchange.items.items():
+         prices.log(listing.price(),  item.__name__)
+         levels.log(listing.level(),  item.__name__)
+         volume.log(listing.volume,   item.__name__)
+         supply.log(listing.supply(), item.__name__)
+         value.log(listing.value(),   item.__name__)
+
+      blob = quill.register('Population Wealth', self.realm.tick, quill.LINE)
+      wealth = [p.inventory.gold.quantity for _, p in self.realm.players.items()]
+      blob.log(sum(wealth), 'Gold')
 
       blob = quill.register('Exploration', self.realm.tick,
             quill.HISTOGRAM, quill.SCATTER)
       blob.log(ent.history.exploration)
 
-      quill.stat('Population', self.realm.population)
-      quill.stat('Lifetime',  ent.history.timeAlive.val)
-      quill.stat('Skilling',  (ent.skills.fishing.level + ent.skills.hunting.level)/2.0)
-      quill.stat('Combat',    combat.level(ent.skills))
-      quill.stat('Equipment', ent.loadout.defense)
-      quill.stat('Charges', 
-         ent.inventory.charges.scraps.heldOrUsed +
-         ent.inventory.charges.shavings.heldOrUsed +
-         ent.inventory.charges.shards.heldOrUsed)
-      quill.stat('Exploration', ent.history.exploration)
+      quill.stat('Population',      self.realm.population)
+      quill.stat('Lifetime',        ent.history.timeAlive.val)
+      quill.stat('Basic Skills',    ent.skills.basicLevel)
+      quill.stat('Harvest Skills',  ent.skills.harvestLevel)
+      quill.stat('Combat Skills',   ent.skills.combatLevel)
+      quill.stat('Equipment',       ent.inventory.equipment.level)
+      quill.stat('Exchange',        ent.buys + ent.sells)
+      quill.stat('Exploration',     ent.history.exploration)
 
    def terminal(self):
       '''Logs currently alive agents and returns all collected logs

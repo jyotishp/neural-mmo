@@ -78,16 +78,16 @@ class Tile:
 
       self.index.update(self.state.index)
 
-   def harvest(self, entity):
-      if self.depleted:
-         return False
+   def harvest(self, deplete=True):
+      err1 = '{} is depleted'.format(self.state)
+      err2 = '{} not harvestable'.format(self.state)
 
-      if self.state not in material.Harvestable:
-         return False
+      assert not self.depleted, err1
+      assert self.state in material.Harvestable, err2
 
-      self.state.harvest(entity)
-      self.depleted = True
-      self.state    = self.mat.deplete(self.config)
-      self.index.update(self.state.index)
+      if deplete:
+         self.depleted = True
+         self.state    = self.mat.deplete(self.config)
+         self.index.update(self.state.index)
 
-      return True
+      return self.mat.harvest()
