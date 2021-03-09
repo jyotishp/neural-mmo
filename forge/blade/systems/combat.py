@@ -6,25 +6,23 @@ import numpy as np
 from forge.blade.systems import skill as Skill
 
 def level(skills):
-   hp = skills.constitution.level
-   defense = skills.defense.level
-   melee = skills.melee.level
-   ranged = skills.range.level
-   mage   = skills.mage.level
+   melee   = skills.melee.level
+   ranged  = skills.range.level
+   mage    = skills.mage.level
    
-   base = 0.25*(defense + hp)
-   final = np.floor(base + 0.5*max(melee, ranged, mage))
+   final = max(melee, ranged, mage)
    return final
 
 def dev_combat(entity, targ, skillFn):
    config = entity.config
    skill  = skillFn(entity)
-   dmg    = damage(skill.__class__, skill.level)
+   dmg    = damageFn(config, skill.__class__)(skill.level)
    
-   if entity.isPlayer and entity.inventory.charges.use(skill):
-      dmg *= 2
+   item = entity.inventory.ammunition.use(skill)
+   if entity.isPlayer and item:
+      dmg += item.damage
       
-   dmg    = min(dmg, entity.resources.health.val)
+   dmg = min(dmg, entity.resources.health.val)
    entity.applyDamage(dmg, skill.__class__.__name__.lower())
    targ.receiveDamage(entity, dmg)
    return dmg
@@ -53,13 +51,13 @@ def attack(entity, targ, skillFn):
    return dmg
 
 #Compute maximum damage roll
-def damage(skill, level):
+def damageFn(config, skill):
    if skill == Skill.Melee:
-      return np.floor(7 + level * 63 / 99)
+      return config.DAMAGE_MELEE
    if skill == Skill.Range:
-      return np.floor(3 + level * 32 / 99)
+      return config.DAMAGE_RANGE
    if skill == Skill.Mage:
-      return np.floor(1 + level * 24 / 99)
+      return config.DAMAGE_MAGE
 
 #Compute maximum attack or defense roll (same formula)
 #Max attack 198 - min def 1 = 197. Max 198 - max 198 = 0

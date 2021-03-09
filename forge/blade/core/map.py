@@ -54,8 +54,8 @@ class Map:
             self.updateList.remove(e)
          e.step()
 
-   def harvest(self, entity):
+   def harvest(self, r, c, deplete=True):
       '''Called by actions that harvest a resource tile'''
-      r, c = entity.pos
-      self.updateList.add(self.tiles[r, c])
-      return self.tiles[r, c].harvest(entity)
+      if deplete:
+         self.updateList.add(self.tiles[r, c])
+      return self.tiles[r, c].harvest(deplete)

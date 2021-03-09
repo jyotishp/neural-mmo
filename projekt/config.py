@@ -116,7 +116,7 @@ class SmallMaps(Base):
 class Dev(SmallMaps):
    MODEL                   = 'scripted-combat' 
 
-   NTILE                   = 12
+   NTILE                   = 16
 
    PATH_MAPS_DEV           = os.path.join(core.Config.PATH_MAPS, 'dev')
    PATH_MAPS               = PATH_MAPS_DEV
@@ -127,16 +127,50 @@ class Dev(SmallMaps):
    TREE_RESPAWN      = 0.01
    '''Probability that a harvested tree tile will regenerate each tick'''
 
-   CRYSTAL_RESPAWN  = 0.01
+   CRYSTAL_RESPAWN   = 0.01
    '''Probability that a harvested crystal tile will regenerate each tick'''
 
-   MAX_FOOD = 5
-   '''Number of inventory spaces for food'''
+   HERB_RESPAWN      = 0.01
+   '''Probability that a harvested herb tile will regenerate each tick'''
 
-   SPAWN_PATCHES           = 50
+   FISH_RESPAWN      = 0.01
+   '''Probability that a harvested fish tile will regenerate each tick'''
+
+
+   N_AMMUNITION      = 3
+   '''Number of inventory spaces for ammunition'''
+
+   N_CONSUMABLES     = 6
+   '''Number of inventory spaces for ammunition'''
+
+   N_LOOT            = 8
+   '''Number of inventory spaces for ammunition'''
+
+   N_ITEM            = 10
+
+
+   SPAWN_CLUSTERS          = 15
+   SPAWN_UNIFORMS          = 50
 
    DEV_COMBAT = True
 
+   def EQUIPMENT_DEFENSE(level):
+      return level / 4
+
+   def EQUIPMENT_OFFENSE(level):
+      return level / 4
+
+   def DAMAGE_AMMUNITION(level):
+      return level // 5 + 1, level // 3 + 1
+
+   def DAMAGE_MELEE(level):
+      return round(10 + level*70/99)
+
+   def DAMAGE_RANGE(level):
+      return round(3 + level*32/99)
+
+   def DAMAGE_MAGE(level):
+      return round(1 + level*24/99)
 
 class Debug(SmallMaps):
    '''Debug Neural MMO training setting

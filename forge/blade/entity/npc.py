@@ -3,7 +3,7 @@ import numpy as np
 
 import random
 from forge.blade.entity import entity, Player
-from forge.blade.systems import combat, equipment, ai, combat, skill
+from forge.blade.systems import combat, ai, combat, skill
 from forge.blade.lib.enums import Neon
 from forge.blade.io.action import static as Action
 from forge.blade.io.stimulus import Static
@@ -44,8 +44,6 @@ class NPC(entity.Entity):
       ent.resources.health.max = constitution
       ent.resources.health.update(constitution)
 
-      ent.skills.constitution.setExpByLevel(constitution)
-      ent.skills.defense.setExpByLevel(defense)
       ent.skills.melee.setExpByLevel(melee)
       ent.skills.range.setExpByLevel(ranged)
       ent.skills.mage.setExpByLevel(mage)
@@ -54,8 +52,11 @@ class NPC(entity.Entity):
          (Action.Melee, Action.Range, Action.Mage))
 
       #Set equipment levels
-      ent.loadout.chestplate.level = NPC.gearLevel(defense)
-      ent.loadout.platelegs.level  = NPC.gearLevel(defense)
+      ent.inventory.equipment.hat.level.update(NPC.gearLevel(defense))
+      ent.inventory.equipment.top.level.update(NPC.gearLevel(defense))
+      ent.inventory.equipment.bottom.level.update(NPC.gearLevel(defense))
+      ent.inventory.equipment.weapon.level.update(NPC.gearLevel(defense))
+      ent.inventory.gold.quantity.update(combat.level(ent.skills))
 
       return ent
 

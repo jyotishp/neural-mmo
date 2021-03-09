@@ -5,6 +5,7 @@ from collections import defaultdict, Mapping
 from typing import Dict, Callable
 
 from forge.blade import core
+from forge.blade.systems.simple_exchange import Exchange
 from forge.blade.lib.enums import Palette
 from forge.blade.entity.npc import NPC
 from forge.blade.entity import Player
@@ -149,6 +150,9 @@ class Realm:
       self.players  = PlayerManager(config, self, identify)
       self.npcs     = NPCManager(config, self)
 
+      #Global item exchange
+      self.exchange = Exchange()
+
    def reset(self, idx):
       '''Reset the environment and load the specified map
 
@@ -185,6 +189,9 @@ class Realm:
       Args:
          actions: Dict of agent actions
       '''
+      #trades = self.exchange.trades
+      #gold   = self.exchange.gold
+      #print('Trades: {}, Gold: {}'.format(trades, gold))
 
       #Prioritize actions
       npcActions = self.npcs.actions(self)

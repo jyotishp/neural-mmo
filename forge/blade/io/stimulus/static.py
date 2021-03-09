@@ -133,3 +133,29 @@ class Stimulus(Config):
          def init(self, config):
             self.max = config.TERRAIN_SIZE
             self.scale = 0.15
+
+   class Item(Config):
+      @staticmethod
+      def N(config):
+         return config.N_AMMUNITION + config.N_CONSUMABLES + config.N_LOOT + 1
+
+      class Index(node.Discrete):
+         def init(self, config):
+            self.max   = config.N_ITEM + 1
+            self.scale = 1.0 / self.max
+
+      class Level(node.Continuous):
+         def init(self, config):
+            self.max   = 99
+            self.scale = 1.0 / self.max
+
+      class Capacity(node.Continuous):
+         def init(self, config):
+            self.max   = 99
+            self.scale = 1.0 / self.max
+
+      class Quantity(node.Continuous):
+         def init(self, config):
+            self.max   = 99
+            self.scale = 1.0 / self.max
+
