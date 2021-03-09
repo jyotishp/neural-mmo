@@ -55,10 +55,16 @@ class Output(nn.Module):
                cands = cands.repeat(batch, 1, 1)
                #Fixed arg
             else:
-               #Temp hack, rename
-               cands = lookup['Entity']
-               lens  = lookup['N']
-
+               if atn == static.Attack:
+                  #Temp hack, rename
+                  cands = lookup['Entity']
+                  lens  = lookup['N']
+               elif atn == static.SellUse:
+                  cands = lookup['Item']
+                  lens  = lookup['N']
+               else:
+                  T()
+ 
             logits = self.net(obs, cands, lens)
 
             #String names for RLlib for now

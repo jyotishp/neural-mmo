@@ -137,8 +137,17 @@ class Dev(SmallMaps):
    '''Probability that a harvested fish tile will regenerate each tick'''
 
 
-   MAX_FOOD = 5
-   '''Number of inventory spaces for food'''
+   N_AMMUNITION      = 3
+   '''Number of inventory spaces for ammunition'''
+
+   N_CONSUMABLES     = 6
+   '''Number of inventory spaces for ammunition'''
+
+   N_LOOT            = 8
+   '''Number of inventory spaces for ammunition'''
+
+   N_ITEM            = 10
+
 
    SPAWN_CLUSTERS          = 15
    SPAWN_UNIFORMS          = 50

@@ -37,20 +37,20 @@ class DropTable:
       return ret
 
 class Empty(DropTable):
-   def roll(self, config, level):
+   def roll(self, realm, level):
       return []
 
 class Ammunition(DropTable):
    def __init__(self, item):
       self.item = item
       
-   def roll(self, config, level):
-      return self.item(config, level)
+   def roll(self, realm, level):
+      return self.item(realm, level)
 
 class Consumable(DropTable):
    def __init__(self, item):
       self.item = item
       
-   def roll(self, config, level):
-      return self.item(config, level)
+   def roll(self, realm, level):
+      return self.item(realm, level)
 

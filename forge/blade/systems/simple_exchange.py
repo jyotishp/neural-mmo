@@ -154,7 +154,7 @@ class Listing:
       return False
          
    def sell(self, seller, item):
-      level    = item.level
+      level    = item.level.val
       offers   = self.offers[level]
 
       adjusted = 1

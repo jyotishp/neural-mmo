@@ -75,6 +75,11 @@ def observationSpace(config):
          low=0, high=config.N_AGENT_OBS, shape=(1,),
          dtype=DataType.DISCRETE)
 
+   obs['Item']['N']   = gym.spaces.Box(
+         high=config.N_AMMUNITION + config.N_CONSUMABLES + config.N_LOOT + 1,
+         dtype=DataType.DISCRETE,
+         low=0, shape=(1,))
+
    return obs
 
 def actionSpace(config):

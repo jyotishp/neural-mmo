@@ -8,6 +8,7 @@ from copy import deepcopy
 from forge.blade import entity, core
 from forge.blade.io import stimulus
 from forge.blade.io.stimulus import Static
+from forge.blade.io.action import static as Action
 from forge.blade.systems import combat
 
 from forge.blade.lib.enums import Palette
@@ -182,11 +183,13 @@ class Env:
                for arg, val in args.items():
                   if len(arg.edges) > 0:
                      actions[entID][atn][arg] = arg.edges[val]
-                  elif val < len(ent.targets):
+                  elif atn == Action.Attack and val < len(ent.targets):
                      targ                     = ent.targets[val]
                      actions[entID][atn][arg] = self.realm.entity(targ)
+                  elif atn  == Action.SellUse and val < len(ent.inventory.items[5:]):
+                     actions[entID][atn][arg] = ent.inventory.items[val + 5]
                   else: #Need to fix -inf in classifier before removing this
-                     actions[entID][atn][arg] = ent
+                     actions[entID][atn][arg] = None
 
       #Step: Realm, Observations, Logs
       dead = self.realm.step(actions)
@@ -288,7 +291,7 @@ class Env:
          value.log(listing.value(),   item.__name__)
 
       blob = quill.register('Population Wealth', self.realm.tick, quill.LINE)
-      wealth = [p.inventory.gold.quantity for _, p in self.realm.players.items()]
+      wealth = [p.inventory.gold.quantity.val for _, p in self.realm.players.items()]
       blob.log(sum(wealth), 'Gold')
 
       blob = quill.register('Exploration', self.realm.tick,

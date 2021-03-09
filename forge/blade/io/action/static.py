@@ -1,10 +1,11 @@
 from pdb import set_trace as T
 import numpy as np
 
+from forge.blade import item
 from forge.blade.lib import utils, material
 from forge.blade.lib.utils import staticproperty
-from forge.blade.io.node import Node, NodeType
 from forge.blade.systems import combat
+from forge.blade.io.node import Node, NodeType
 from forge.blade.io.stimulus import Static
 
 class Fixed:
@@ -17,7 +18,7 @@ class Action(Node):
    @staticproperty
    def edges():
       #return [Move, Attack, Exchange, Skill]
-      return [Move, Attack]
+      return [Move, Attack, Buy, SellUse]
       #return [Move]
 
    @staticproperty
@@ -144,12 +145,11 @@ class Attack(Node):
       return abs(r - rCent) + abs(c - cCent)
 
    def call(env, entity, style, targ):
-      #Can't attack if either party is immune
-      if entity.status.immune > 0 or targ.status.immune > 0:
+      if targ is None or entity.entID == targ.entID:
          return
 
-      #Check if self targeted
-      if entity.entID == targ.entID:
+      #Can't attack if either party is immune
+      if entity.status.immune > 0 or targ.status.immune > 0:
          return
 
       #Check wilderness level
@@ -185,13 +185,13 @@ class Attack(Node):
 
 class Style(Node):
    argType = Fixed
+
    @staticproperty
    def edges():
       return [Melee, Range, Mage]
 
    def args(stim, entity, config):
       return Style.edges
-
 
 class Target(Node):
    argType = None
@@ -239,47 +239,92 @@ class Mage(Node):
    def skill(entity):
       return entity.skills.mage
 
+class Buy(Node):
+   priority = -1 
+   nodeType = NodeType.SELECTION
+
+   @staticproperty
+   def edges():
+      return [Item]
+
+   @staticproperty
+   def leaf():
+      return True
+
+   def call(env, entity, item):
+      if not item:
+         return
+      
+      return env.exchange.buy(entity, item, 0, 99)
+
+class Item(Node):
+   argType = Fixed
+   @staticproperty
+   def edges():
+      return [item.Hat, item.Top, item.Bottom, item.Weapon,
+              item.Scrap, item.Shaving, item.Shard,
+              item.Food, item.Potion]
+
+   def args(stim, entity, config):
+      return Item.edges
+
+class SellUseArg(Node):
+   priority = -3 
+   argType = Fixed
+
+   @staticproperty
+   def edges():
+      return [Sell, Use]
+
+   def args(env, entity, item):
+      T()
+      return SellUse.edges
+
+class Sell(Node):
+   nodeType = NodeType.ACTION
+
+class Use(Node):
+   nodeType = NodeType.ACTION
+
+class SellUse(Node):
+   priority = -2 
+   nodeType = NodeType.SELECTION
+
+   @staticproperty
+   def edges():
+      return [Inventory, SellUseArg]
+
+   @staticproperty
+   def leaf():
+      return True
+
+   def call(env, entity, item, selluse):
+      if item is None:
+         return
+
+      if selluse == Sell:
+         return env.exchange.sell(entity, item)
+
+      #Use
+      if not entity.inventory.consumables.__contains__(type(item)):
+         return
+
+      item.use(entity)
+      entity.inventory.consumables.remove(item)
+      return True
+
+class Inventory(Node):
+   argType = None
+
+   @classmethod
+   def N(cls, config):
+      return config.N_AMMUNITION + config.N_CONSUMABLES + config.N_LOOT + 1
+
+   def args(stim, entity, config):
+      return entity.items
+
 class Reproduce:
    pass
-
-class Skill(Node):
-   nodeType = NodeType.SELECTION
-   @staticproperty
-   def edges():
-      return [Harvest, Process]
-
-   def args(stim, entity, config):
-      return Skill.edges
-
-class Harvest(Node):
-   nodeType = NodeType.SELECTION
-   @staticproperty
-   def edges():
-      return [Fish, Mine]
-
-   def args(stim, entity, config):
-      return Harvest.edges
-
-class Fish(Node):
-   nodeType = NodeType.ACTION
-
-class Mine(Node):
-   nodeType = NodeType.ACTION
-
-class Process(Node):
-   nodeType = NodeType.SELECTION
-   @staticproperty
-   def edges():
-      return [Cook, Smith]
-
-   def args(stim, entity, config):
-      return Process.edges
-
-class Cook(Node):
-   nodeType = NodeType.ACTION
-
-class Smith(Node):
-   nodeType = NodeType.ACTION
 
 class Exchange(Node):
    nodeType = NodeType.SELECTION
@@ -289,12 +334,6 @@ class Exchange(Node):
 
    def args(stim, entity, config):
       return Exchange.edges
-
-class Buy(Node):
-   nodeType = NodeType.ACTION
-
-class Sell(Node):
-   nodeType = NodeType.ACTION
 
 class CancelOffer(Node):
    nodeType = NodeType.ACTION

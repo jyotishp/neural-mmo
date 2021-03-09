@@ -1,12 +1,24 @@
 from pdb import set_trace as T
 import random
 
+from forge.blade.io.stimulus import Static
 from forge.blade.lib.enums import Tier
 
 class Item:
-   def __init__(self, config, level):
-      self.config = config
-      self.level  = level
+   INSTANCE_ID = 1
+   def __init__(self, realm, level=0, capacity=0, quantity=0):
+      self.instanceID   = self.INSTANCE_ID
+      Item.INSTANCE_ID += 1
+
+      self.config   = realm.config
+      self.realm    = realm  
+
+      self.index    = Static.Item.Index(realm.dataframe, self.instanceID, self.ITEM_ID)
+      self.level    = Static.Item.Level(realm.dataframe, self.instanceID, level)
+      self.capacity = Static.Item.Capacity(realm.dataframe, self.instanceID, capacity)
+      self.quantity = Static.Item.Quantity(realm.dataframe, self.instanceID, quantity)
+
+      realm.dataframe.init(Static.Item, self.instanceID, None)
 
    @property
    def packet(self):
@@ -14,8 +26,8 @@ class Item:
               'level': self.level}
 
 class Stack(Item):
-   def __init__(self, config, level):
-      super().__init__(config, level)
+   def __init__(self, realm, level):
+      super().__init__(realm, level)
       capacity      = level
       self.capacity = capacity
       self.quantity = capacity
@@ -36,9 +48,7 @@ class Stack(Item):
       return False
 
 class Gold(Item):
-   def __init__(self, config):
-      super().__init__(config, level=0)
-      self.quantity = 0
+   ITEM_ID = 1
 
    @property
    def packet(self):
@@ -69,29 +79,33 @@ class Equipment(Item):
         return Tier.DIAMOND
 
 class Hat(Equipment):
-   def __init__(self, config, level):
-      super().__init__(config, level)
-      self.defense = config.EQUIPMENT_DEFENSE(level)
+   ITEM_ID = 2
+   def __init__(self, realm, level):
+      super().__init__(realm, level)
+      self.defense = realm.config.EQUIPMENT_DEFENSE(level)
 
 class Top(Equipment):
-   def __init__(self, config, level):
-      super().__init__(config, level)
-      self.defense = config.EQUIPMENT_DEFENSE(level)
+   ITEM_ID = 3
+   def __init__(self, realm, level):
+      super().__init__(realm, level)
+      self.defense = realm.config.EQUIPMENT_DEFENSE(level)
 
 class Bottom(Equipment):
-   def __init__(self, config, level):
-      super().__init__(config, level)
-      self.defense = config.EQUIPMENT_DEFENSE(level)
+   ITEM_ID = 4
+   def __init__(self, realm, level):
+      super().__init__(realm, level)
+      self.defense = realm.config.EQUIPMENT_DEFENSE(level)
 
 class Weapon(Equipment):
-   def __init__(self, config, level):
-      super().__init__(config, level)
-      self.offense = config.EQUIPMENT_OFFENSE(level)
+   ITEM_ID = 5
+   def __init__(self, realm, level):
+      super().__init__(realm, level)
+      self.offense = realm.config.EQUIPMENT_OFFENSE(level)
 
 class Ammunition(Stack):
-   def __init__(self, config, level):
-      super().__init__(config, level)
-      self.minDmg, self.maxDmg = config.DAMAGE_AMMUNITION(level)
+   def __init__(self, realm, level):
+      super().__init__(realm, level)
+      self.minDmg, self.maxDmg = realm.config.DAMAGE_AMMUNITION(level)
 
    @property
    def packet(self):
@@ -112,21 +126,28 @@ class Ammunition(Stack):
    def damage(self):
       return random.randint(self.minDmg, self.maxDmg)
   
-class Scrap(Ammunition): pass
-class Shaving(Ammunition): pass
-class Shard(Ammunition): pass
+class Scrap(Ammunition):
+   ITEM_ID = 6
+
+class Shaving(Ammunition):
+   ITEM_ID = 7
+
+class Shard(Ammunition):
+   ITEM_ID = 8
 
 class Consumable(Item):
-   def __init__(self, config, level):
-      super().__init__(config, level)
+   def __init__(self, realm, level):
+      super().__init__(realm, level)
       self.restore = level
 
 class Food(Consumable):
+   ITEM_ID = 9
    def use(self, entity):
       entity.resources.food.increment(self.restore)
       entity.resources.water.increment(self.restore)
 
 class Potion(Consumable):
+   ITEM_ID = 10
    def use(self, entity):
       entity.resources.health.increment(self.restore)
  

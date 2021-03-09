@@ -51,11 +51,11 @@ class Pouch:
       return items
 
 class Loadout:
-   def __init__(self, config, hat=0, top=0, bottom=0, weapon=0):
-      self.hat    = Item.Hat(config, hat)
-      self.top    = Item.Top(config, top)
-      self.bottom = Item.Bottom(config, bottom)
-      self.weapon = Item.Weapon(config, weapon)
+   def __init__(self, realm, hat=0, top=0, bottom=0, weapon=0):
+      self.hat    = Item.Hat(realm, hat)
+      self.top    = Item.Top(realm, top)
+      self.bottom = Item.Bottom(realm, bottom)
+      self.weapon = Item.Weapon(realm, weapon)
 
    @property
    def items(self):
@@ -69,10 +69,10 @@ class Loadout:
 
    @property
    def level(self):
-      return 0.25 * (self.hat.level
-                   + self.top.level
-                   + self.bottom.level
-                   + self.weapon.level)
+      return 0.25 * (self.hat.level.val
+                   + self.top.level.val
+                   + self.bottom.level.val
+                   + self.weapon.level.val)
 
    @property
    def offense(self):
@@ -93,11 +93,11 @@ class Inventory:
       config           = realm.config
       self.config      = config
 
-      self.gold        = Item.Gold(config)
-      self.equipment   = Loadout(config)
-      self.ammunition  = Pouch(3)
-      self.consumables = Pouch(6)
-      self.loot        = Pouch(8)
+      self.gold        = Item.Gold(realm)
+      self.equipment   = Loadout(realm)
+      self.ammunition  = Pouch(config.N_AMMUNITION)
+      self.consumables = Pouch(config.N_CONSUMABLES)
+      self.loot        = Pouch(config.N_LOOT)
 
    def packet(self):
       data                = {}
@@ -112,8 +112,12 @@ class Inventory:
 
    @property
    def items(self):
-      return (self.equipment.items + self.ammunition.items
-            + self.consumables.items + self.loot.items + [self.gold])
+      return (self.equipment.items + [self.gold] + self.ammunition.items
+            + self.consumables.items + self.loot.items)
+
+   @property
+   def dataframeKeys(self):
+      return [e.instanceID for e in self.items[5:]]
 
    def remove(self, item):
       if self.loot.__contains__(item):
@@ -122,9 +126,10 @@ class Inventory:
          self.consumables.remove(item)
       elif self.ammunition.__contains__(item):
          self.ammunition.remove(item)
-      elif self.equipment.__contains__(item):
-         self.equipment.remove(item)
+      #elif self.equipment.__contains__(item):
+      #   self.equipment.remove(item)
       else:
+         T()
          system.exit(0, "{} not in inv".format(item))
 
    def receiveItems(self, items):
@@ -135,7 +140,7 @@ class Inventory:
          #print(msg.format(item.level, item.__class__.__name__))
 
          if isinstance(item, Item.Gold):
-            self.gold.quantity += item.quantity
+            self.gold.quantity += item.quantity.val
          elif isinstance(item, Item.Hat) and item.level > self.equipment.hat.level:
             self.equipment.hat = item
          elif isinstance(item, Item.Top) and item.level > self.equipment.top.level:

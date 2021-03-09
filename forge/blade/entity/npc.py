@@ -52,11 +52,11 @@ class NPC(entity.Entity):
          (Action.Melee, Action.Range, Action.Mage))
 
       #Set equipment levels
-      ent.inventory.equipment.hat.level    = NPC.gearLevel(defense)
-      ent.inventory.equipment.top.level    = NPC.gearLevel(defense)
-      ent.inventory.equipment.bottom.level = NPC.gearLevel(defense)
-      ent.inventory.equipment.weapon.level = NPC.gearLevel(defense)
-      ent.inventory.gold.quantity         += combat.level(ent.skills)
+      ent.inventory.equipment.hat.level.update(NPC.gearLevel(defense))
+      ent.inventory.equipment.top.level.update(NPC.gearLevel(defense))
+      ent.inventory.equipment.bottom.level.update(NPC.gearLevel(defense))
+      ent.inventory.equipment.weapon.level.update(NPC.gearLevel(defense))
+      ent.inventory.gold.quantity.update(combat.level(ent.skills))
 
       return ent
 
