@@ -139,7 +139,7 @@ class Listing:
          seller       = offer.seller
          item         = offer.item
 
-         buyer.receiveItems(item)
+         buyer.inventory.receivePurchase(item)
          #print('Buy {}: {}'.format(item.__name__, price))
  
          seller.inventory.gold.quantity += price

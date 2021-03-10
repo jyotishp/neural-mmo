@@ -181,16 +181,16 @@ class Env:
 
             for atn, args in actions[entID].items():
                for arg, val in args.items():
+                  obj = None
                   if len(arg.edges) > 0:
-                     actions[entID][atn][arg] = arg.edges[val]
-                  elif atn == Action.Attack and val < len(ent.targets):
-                     targ                     = ent.targets[val]
-                     actions[entID][atn][arg] = self.realm.entity(targ)
-                  elif atn  == Action.SellUse and val < len(ent.inventory.items[5:]):
-                     actions[entID][atn][arg] = ent.inventory.items[val + 5]
-                  else: #Need to fix -inf in classifier before removing this
-                     actions[entID][atn][arg] = None
+                     obj = arg.edges[val]
+                  else:
+                     objs = arg.gameObjects(self.realm, ent, val)
+                     if val < len(objs):
+                        obj = objs[val]
 
+                  actions[entID][atn][arg] = obj
+               
       #Step: Realm, Observations, Logs
       dead = self.realm.step(actions)
       obs, rewards, dones, self.raw = {}, {}, {}, {}
@@ -262,10 +262,10 @@ class Env:
 
       blob = quill.register('Equipment', self.realm.tick,
             quill.HISTOGRAM, quill.SCATTER)
-      blob.log(ent.inventory.equipment.hat.level,    'Hat')
-      blob.log(ent.inventory.equipment.top.level,    'Top')
-      blob.log(ent.inventory.equipment.bottom.level, 'Bottom')
-      blob.log(ent.inventory.equipment.weapon.level, 'Weapon')
+      blob.log(ent.inventory.equipment.hat.level.val,    'Hat')
+      blob.log(ent.inventory.equipment.top.level.val,    'Top')
+      blob.log(ent.inventory.equipment.bottom.level.val, 'Bottom')
+      blob.log(ent.inventory.equipment.weapon.level.val, 'Weapon')
 
       #blob = quill.register('Attack Charges', self.realm.tick,
       #      quill.HISTOGRAM, quill.STACKED_AREA, quill.STATS, quill.RADAR)

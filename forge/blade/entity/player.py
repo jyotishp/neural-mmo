@@ -30,7 +30,7 @@ class Player(entity.Entity):
 
       #Submodules
       self.skills     = Skills(self)
-      self.inventory  = Inventory(self)
+      self.inventory  = Inventory(realm, self)
       #self.chat      = Chat(dataframe)
 
       #Update immune
@@ -66,9 +66,6 @@ class Player(entity.Entity):
       self.resources.food.decrement(dmg)
       self.resources.water.decrement(dmg)
       self.skills.receiveDamage(dmg)
-
-   def receiveItems(self, items):
-      self.inventory.receiveItems(items)
 
    def packet(self):
       data = super().packet()

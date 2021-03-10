@@ -172,6 +172,9 @@ class Dev(SmallMaps):
    def DAMAGE_MAGE(level):
       return round(1 + level*24/99)
 
+   def RESTORE(level):
+      return level
+
 class Debug(SmallMaps):
    '''Debug Neural MMO training setting
 

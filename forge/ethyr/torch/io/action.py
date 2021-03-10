@@ -50,26 +50,13 @@ class Output(nn.Module):
             if arg.argType == static.Fixed:
                batch = obs.shape[0]
                idxs  = [e.idx for e in arg.edges]
-               #cands = lookup[static.Fixed.__name__][idxs]
                cands = self.arg.weight[idxs]
                cands = cands.repeat(batch, 1, 1)
-               #Fixed arg
             else:
-               if atn == static.Attack:
-                  #Temp hack, rename
-                  cands = lookup['Entity']
-                  lens  = lookup['N']
-               elif atn == static.SellUse:
-                  cands = lookup['Item']
-                  lens  = lookup['N']
-               else:
-                  T()
+               cands = lookup[arg.argType]
+               lens  = lookup[arg.argType + '_N']
  
-            logits = self.net(obs, cands, lens)
-
-            #String names for RLlib for now
-            #rets[atn.__name__][arg.__name__] = logits
-            rets[atn][arg] = logits
+            rets[atn][arg] = self.net(obs, cands, lens)
 
       return rets
       

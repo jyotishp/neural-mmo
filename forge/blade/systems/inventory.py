@@ -1,4 +1,5 @@
 from pdb import set_trace as T
+import numpy as np
 
 import inspect
 
@@ -41,6 +42,10 @@ class Pouch:
 
       return item
 
+   def __iter__(self):
+      for item in self.items:
+         yield item
+
    def __contains__(self, item):
       items = []
       for itm in self.items:
@@ -61,6 +66,24 @@ class Loadout:
    def items(self):
       return [self.hat, self.top, self.bottom, self.weapon]
 
+   def __contains__(self, item):
+      return (item == self.hat or
+              item == self.top or
+              item == self.bottom or
+              item == self.weapon)
+
+   def remove(self, item):
+      if item == self.hat:
+         self.hat = None
+      elif item == self.top:
+         self.top = None
+      elif item == self.bottom:
+         self.bottom = None
+      elif item == self.weapon:
+         self.weapon = None
+      else:
+         system.exit(0, "{} not in inv".format(item))
+
    @property
    def defense(self):
       return round(self.hat.defense
@@ -68,12 +91,16 @@ class Loadout:
                       + self.bottom.defense)
 
    @property
-   def level(self):
-      return 0.25 * (self.hat.level.val
-                   + self.top.level.val
-                   + self.bottom.level.val
-                   + self.weapon.level.val)
+   def levels(self):
+      lvls = []
+      for item in self.items:
+         lvls.append(0 if item is None else item.level.val)
+      return lvls
 
+   @property
+   def level(self):
+      return np.mean(self.levels)
+         
    @property
    def offense(self):
       return round(self.weapon.offense)
@@ -89,8 +116,10 @@ class Loadout:
       return packet
 
 class Inventory:
-   def __init__(self, realm):
+   def __init__(self, realm, entity):
       config           = realm.config
+      self.realm       = realm
+      self.entity      = entity
       self.config      = config
 
       self.gold        = Item.Gold(realm)
@@ -99,6 +128,9 @@ class Inventory:
       self.consumables = Pouch(config.N_CONSUMABLES)
       self.loot        = Pouch(config.N_LOOT)
 
+      self.pouches = [self.equipment, self.ammunition,
+                      self.consumables, self.loot]
+
    def packet(self):
       data                = {}
 
@@ -106,7 +138,6 @@ class Inventory:
       data['ammunition']  = self.ammunition.packet()
       data['consumables'] = self.consumables.packet()
       data['loot']        = self.loot.packet()
-      #print(self.loot.packet())
 
       return data
 
@@ -119,40 +150,46 @@ class Inventory:
    def dataframeKeys(self):
       return [e.instanceID for e in self.items[5:]]
 
-   def remove(self, item):
-      if self.loot.__contains__(item):
-         self.loot.remove(item)
-      elif self.consumables.__contains__(item):
-         self.consumables.remove(item)
-      elif self.ammunition.__contains__(item):
-         self.ammunition.remove(item)
-      #elif self.equipment.__contains__(item):
-      #   self.equipment.remove(item)
-      else:
-         T()
-         system.exit(0, "{} not in inv".format(item))
+   def __contains__(self, item):
+      for pouch in self.pouches:
+         if ret := pouch.__contains__(item):
+            return ret
+      return False
 
-   def receiveItems(self, items):
+   def remove(self, item):
+      for pouch in self.pouches:
+         if item in pouch:
+            pouch.remove(item)
+            return
+      
+      assert False, "{} not in inv".format(item)
+
+   def receivePurchase(self, item):
+      if isinstance(item, Item.Hat):
+         self.realm.exchange.sell(self.entity, self.equipment.hat)
+         self.equipment.hat = item
+      elif isinstance(item, Item.Top):
+         self.realm.exchange.sell(self.entity, self.equipment.top)
+         self.equipment.top = item
+      elif isinstance(item, Item.Bottom):
+         self.realm.exchange.sell(self.entity, self.equipment.bottom)
+         self.equipment.bottom = item
+      elif isinstance(item, Item.Weapon):
+         self.realm.exchange.sell(self.entity, self.equipment.weapon)
+         self.equipment.weapon = item
+      elif isinstance(item, Item.Ammunition) and self.ammunition.space:
+         self.ammunition.add(item)
+      elif isinstance(item, Item.Consumable) and self.consumables.space:
+         self.consumables.add(item)
+ 
+   def receiveLoot(self, items):
       if type(items) != list:
          items = [items]
+
       for item in items:
          #msg = 'Received Drop: Level {} {}'
          #print(msg.format(item.level, item.__class__.__name__))
-
          if isinstance(item, Item.Gold):
             self.gold.quantity += item.quantity.val
-         elif isinstance(item, Item.Hat) and item.level > self.equipment.hat.level:
-            self.equipment.hat = item
-         elif isinstance(item, Item.Top) and item.level > self.equipment.top.level:
-            self.equipment.top = item
-         elif isinstance(item, Item.Bottom) and item.level > self.equipment.bottom.level:
-            self.equipment.bottom = item
-         elif isinstance(item, Item.Weapon) and item.level > self.equipment.weapon.level:
-            self.equipment.weapon = item
-         elif isinstance(item, Item.Ammunition) and self.ammunition.space:
-            self.ammunition.add(item)
-         elif isinstance(item, Item.Consumable) and self.consumables.space:
-            self.consumables.add(item)
          elif self.loot.space:
             self.loot.add(item)
-

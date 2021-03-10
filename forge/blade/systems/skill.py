@@ -88,7 +88,7 @@ class NonCombatSkill(Skill):
 class HarvestSkill(NonCombatSkill):
    def processDrops(self, realm, entity, dropTable):
       drops = dropTable.roll(realm, self.level)
-      entity.receiveItems(drops)
+      entity.inventory.receiveLoot(drops)
       self.exp += 10 * self.config.XP_SCALE
         
    def harvest(self, realm, entity, matl, deplete=True):

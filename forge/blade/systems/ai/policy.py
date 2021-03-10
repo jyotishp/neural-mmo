@@ -110,22 +110,29 @@ def baseline(realm, entity, explore, forage, combat):
       entity.inventory.consumables.remove(food)
    
    #Exchange Buy/Sell
-   for item in {Item.Food, Item.Potion}:
-      held = entity.inventory.consumables.__contains__(item)
-      if not held:
-         realm.exchange.buy(entity, item, 0, 99)
-      elif len(held) > 1:
-         realm.exchange.sell(entity, held[0])
+   for item in entity.inventory.loot:
+      realm.exchange.sell(entity, item)
 
+   for item in {Item.Food, Item.Potion}:
+      if item not in entity.inventory.consumables:
+         realm.exchange.buy(entity, item, 0, 99)
+
+   ammunition = entity.inventory.ammunition
    if entity.forage:
-      for item in entity.inventory.ammunition.items:
+      for item in ammunition.items:
          realm.exchange.sell(entity, item)
-   elif entity.skills.style == Action.Melee and not entity.inventory.ammunition.__contains__(Item.Scrap):
-      realm.exchange.buy(entity, Item.Scrap, 0, 99)
-   elif entity.skills.style == Action.Range and not entity.inventory.ammunition.__contains__(Item.Shaving):
-      realm.exchange.buy(entity, Item.Shaving, 0, 99)
-   elif entity.skills.style == Action.Mage and not entity.inventory.ammunition.__contains__(Item.Shard):
-      realm.exchange.buy(entity, Item.Shard, 0, 99)
+   else:
+      if entity.skills.style == Action.Melee and Item.Scrap not in ammunition:
+         realm.exchange.buy(entity, Item.Scrap, 0, 99)
+      elif entity.skills.style == Action.Range and Item.Shaving not in ammunition:
+         realm.exchange.buy(entity, Item.Shaving, 0, 99)
+      elif entity.skills.style == Action.Mage and Item.Shard not in ammunition:
+         realm.exchange.buy(entity, Item.Shard, 0, 99)
+
+      equipTypes  = [type(e) for e in entity.inventory.equipment.items]
+      equipLevels = entity.inventory.equipment.levels
+      idx         = np.random.choice(np.flatnonzero(np.array(equipLevels) == np.max(equipLevels)))
+      realm.exchange.buy(entity, equipTypes[idx], equipLevels[idx], 99)
 
    #Forage if low on resources
    min_level = 7

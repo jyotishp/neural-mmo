@@ -159,3 +159,32 @@ class Stimulus(Config):
             self.max   = 99
             self.scale = 1.0 / self.max
 
+      class Tradable(node.Discrete):
+         def init(self, config):
+            self.max   = 1
+            self.scale = 1.0
+
+      class Offense(node.Discrete):
+         def init(self, config):
+            self.max   = 99
+            self.scale = 1.0 / self.max
+
+      class Defense(node.Discrete):
+         def init(self, config):
+            self.max   = 99
+            self.scale = 1.0 / self.max
+
+      class MinDmg(node.Discrete):
+         def init(self, config):
+            self.max   = 99
+            self.scale = 1.0 / self.max
+
+      class MaxDmg(node.Discrete):
+         def init(self, config):
+            self.max   = 99
+            self.scale = 1.0 / self.max
+
+      class Restore(node.Discrete):
+         def init(self, config):
+            self.max   = 99
+            self.scale = 1.0 / self.max

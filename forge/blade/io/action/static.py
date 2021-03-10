@@ -17,9 +17,7 @@ class Action(Node):
 
    @staticproperty
    def edges():
-      #return [Move, Attack, Exchange, Skill]
-      return [Move, Attack, Buy, SellUse]
-      #return [Move]
+      return [Move, Attack, Buy, InventoryAction]
 
    @staticproperty
    def n():
@@ -194,8 +192,7 @@ class Style(Node):
       return Style.edges
 
 class Target(Node):
-   argType = None
-   #argType = Player 
+   argType  = 'Entity'
 
    @classmethod
    def N(cls, config):
@@ -205,6 +202,10 @@ class Target(Node):
    def args(stim, entity, config):
       #Should pass max range?
       return Attack.inRange(entity, stim, config, None)
+
+   @classmethod
+   def gameObjects(cls, realm, entity, val):
+      return [realm.entity(targ) for targ in entity.targets]
 
 class Melee(Node):
    nodeType = NodeType.ACTION
@@ -245,7 +246,7 @@ class Buy(Node):
 
    @staticproperty
    def edges():
-      return [Item]
+      return [ItemType]
 
    @staticproperty
    def leaf():
@@ -257,7 +258,7 @@ class Buy(Node):
       
       return env.exchange.buy(entity, item, 0, 99)
 
-class Item(Node):
+class ItemType(Node):
    argType = Fixed
    @staticproperty
    def edges():
@@ -268,44 +269,30 @@ class Item(Node):
    def args(stim, entity, config):
       return Item.edges
 
-class SellUseArg(Node):
-   priority = -3 
-   argType = Fixed
-
-   @staticproperty
-   def edges():
-      return [Sell, Use]
-
-   def args(env, entity, item):
-      T()
-      return SellUse.edges
-
-class Sell(Node):
-   nodeType = NodeType.ACTION
-
-class Use(Node):
-   nodeType = NodeType.ACTION
-
-class SellUse(Node):
+class InventoryAction(Node):
    priority = -2 
    nodeType = NodeType.SELECTION
 
    @staticproperty
    def edges():
-      return [Inventory, SellUseArg]
+      return [InventoryActionType, Item]
 
    @staticproperty
    def leaf():
       return True
 
-   def call(env, entity, item, selluse):
+   def call(env, entity, actionType, item):
+      assert actionType in (Discard, Use, Sell)
+
       if item is None:
          return
 
-      if selluse == Sell:
+      if actionType == Discard:
+         return
+         return entity.inventory.consumables.remove(item)
+      if actionType == Sell:
          return env.exchange.sell(entity, item)
 
-      #Use
       if not entity.inventory.consumables.__contains__(type(item)):
          return
 
@@ -313,8 +300,8 @@ class SellUse(Node):
       entity.inventory.consumables.remove(item)
       return True
 
-class Inventory(Node):
-   argType = None
+class Item(Node):
+   argType  = 'Item'
 
    @classmethod
    def N(cls, config):
@@ -323,22 +310,34 @@ class Inventory(Node):
    def args(stim, entity, config):
       return entity.items
 
-class Reproduce:
-   pass
+   @classmethod
+   def gameObjects(cls, realm, entity, val):
+      return entity.inventory.items[5:]
 
-class Exchange(Node):
-   nodeType = NodeType.SELECTION
+class InventoryActionType(Node):
+   priority = -3 
+   argType  = Fixed
+
    @staticproperty
    def edges():
-      return [Buy, Sell, CancelOffer]
+      return [Discard, Sell, Use]
 
-   def args(stim, entity, config):
-      return Exchange.edges
+   def args(env, entity, item):
+      return InventoryActionType.edges
 
-class CancelOffer(Node):
+class Discard(Node):
+   nodeType = NodeType.ACTION
+
+class Sell(Node):
+   nodeType = NodeType.ACTION
+
+class Use(Node):
    nodeType = NodeType.ACTION
 
 class Message:
+   pass
+
+class Reproduce:
    pass
 
 class BecomeSkynet:

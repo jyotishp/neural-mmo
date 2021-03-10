@@ -148,7 +148,7 @@ class Entity:
       self.status    = Status(self)
       self.history   = History(self)
       self.resources = Resources(self)
-      self.inventory = inventory.Inventory(realm)
+      self.inventory = inventory.Inventory(realm, self)
 
    def packet(self):
       data = {}
@@ -174,12 +174,12 @@ class Entity:
       self.resources.health.decrement(dmg)
 
       if not self.alive and source is not None:
-         source.receiveItems(self.inventory.items)
+         source.inventory.receiveLoot(self.inventory.items)
          return False
 
       return True
 
-   def receiveItems(self, items):
+   def receiveLoot(self, items):
       pass
 
    def applyDamage(self, dmg, style):

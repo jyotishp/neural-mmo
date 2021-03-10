@@ -6,7 +6,10 @@ from forge.blade.lib.enums import Tier
 
 class Item:
    INSTANCE_ID = 1
-   def __init__(self, realm, level=0, capacity=0, quantity=0):
+   def __init__(self, realm, level,
+         capacity=0, quantity=0, tradable=True,
+         offense=0, defense=0, minDmg=0, maxDmg=0,
+         restore=0):
       self.instanceID   = self.INSTANCE_ID
       Item.INSTANCE_ID += 1
 
@@ -17,43 +20,44 @@ class Item:
       self.level    = Static.Item.Level(realm.dataframe, self.instanceID, level)
       self.capacity = Static.Item.Capacity(realm.dataframe, self.instanceID, capacity)
       self.quantity = Static.Item.Quantity(realm.dataframe, self.instanceID, quantity)
+      self.tradable = Static.Item.Tradable(realm.dataframe, self.instanceID, tradable)
+      self.offense  = Static.Item.Offense(realm.dataframe, self.instanceID, offense)
+      self.defense  = Static.Item.Defense(realm.dataframe, self.instanceID, defense)
+      self.minDmg   = Static.Item.MinDmg(realm.dataframe, self.instanceID, minDmg)
+      self.maxDmg   = Static.Item.MaxDmg(realm.dataframe, self.instanceID, maxDmg)
+      self.restore  = Static.Item.Restore(realm.dataframe, self.instanceID, restore)
 
       realm.dataframe.init(Static.Item, self.instanceID, None)
 
    @property
    def packet(self):
-      return {'item':  self.__class__.__name__,
-              'level': self.level}
+      return {'item':     self.__class__.__name__,
+              'level':    self.level.val,
+              'capacity': self.capacity.val,
+              'quantity': self.quantity.val,
+              'offense':  self.offense.val,
+              'defense':  self.defense.val,
+              'minDmg':   self.minDmg.val,
+              'maxDmg':   self.maxDmg.val,
+              'restore':  self.restore.val}
+ 
+   def use(self, entity):
+      return
 
 class Stack(Item):
-   def __init__(self, realm, level):
-      super().__init__(realm, level)
-      capacity      = level
-      self.capacity = capacity
-      self.quantity = capacity
-
-   @property
-   def packet(self):
-      packet = {'capacity': self.capacity,
-                'quantity': self.quantity}
-      return {**packet, **super().packet}
-
-   def use(self):
+   def use(self, entity):
       assert self.quantity > 0
+
       self.quantity -= 1
-
       if self.quantity > 0:
-         return True
+         return
 
-      return False
+      entity.inventory.remove(self)
 
 class Gold(Item):
    ITEM_ID = 1
-
-   @property
-   def packet(self):
-      packet = {'quantity': self.quantity}
-      return {**packet, **super().packet}
+   def __init__(self, realm, **kwargs):
+      super().__init__(realm, level=0, tradable=False, **kwargs)
 
 class Equipment(Item):
    @property
@@ -78,53 +82,35 @@ class Equipment(Item):
      else:
         return Tier.DIAMOND
 
-class Hat(Equipment):
+class Offensive(Equipment):
+   def __init__(self, realm, level, **kwargs):
+      offense = realm.config.EQUIPMENT_OFFENSE(level)
+      super().__init__(realm, level, offense=offense, **kwargs)
+
+class Defensive(Equipment):
+   def __init__(self, realm, level, **kwargs):
+      defense = realm.config.EQUIPMENT_DEFENSE(level)
+      super().__init__(realm, level, defense=defense, **kwargs)
+
+class Hat(Defensive):
    ITEM_ID = 2
-   def __init__(self, realm, level):
-      super().__init__(realm, level)
-      self.defense = realm.config.EQUIPMENT_DEFENSE(level)
 
-class Top(Equipment):
+class Top(Defensive):
    ITEM_ID = 3
-   def __init__(self, realm, level):
-      super().__init__(realm, level)
-      self.defense = realm.config.EQUIPMENT_DEFENSE(level)
 
-class Bottom(Equipment):
+class Bottom(Defensive):
    ITEM_ID = 4
-   def __init__(self, realm, level):
-      super().__init__(realm, level)
-      self.defense = realm.config.EQUIPMENT_DEFENSE(level)
 
-class Weapon(Equipment):
+class Weapon(Offensive):
    ITEM_ID = 5
-   def __init__(self, realm, level):
-      super().__init__(realm, level)
-      self.offense = realm.config.EQUIPMENT_OFFENSE(level)
 
 class Ammunition(Stack):
-   def __init__(self, realm, level):
-      super().__init__(realm, level)
-      self.minDmg, self.maxDmg = realm.config.DAMAGE_AMMUNITION(level)
-
-   @property
-   def packet(self):
-      packet = {'minDmg': self.minDmg,
-                'maxDmg': self.maxDmg}
-      return {**packet, **super().packet}
-
-   def use(self, skill):
-      if skill.__name__ == 'Melee':
-         return super().use(Item.Scrap)
-      if skill.__name__ == 'Range':
-         return super().use(Item.Shaving)
-      if skill.__name__ == 'Mage':
-         return super().use(Item.Shard)
-
-      system.exit(0, 'Ammunition.Use: invalid skill {}'.format(skill))      
+   def __init__(self, realm, level, **kwargs):
+      minDmg, maxDmg = realm.config.DAMAGE_AMMUNITION(level)
+      super().__init__(realm, level, minDmg=minDmg, maxDmg=maxDmg, **kwargs)
 
    def damage(self):
-      return random.randint(self.minDmg, self.maxDmg)
+      return random.randint(self.minDmg.val, self.maxDmg.val)
   
 class Scrap(Ammunition):
    ITEM_ID = 6
@@ -136,18 +122,18 @@ class Shard(Ammunition):
    ITEM_ID = 8
 
 class Consumable(Item):
-   def __init__(self, realm, level):
-      super().__init__(realm, level)
-      self.restore = level
+   def __init__(self, realm, level, **kwargs):
+      restore = realm.config.RESTORE(level)
+      super().__init__(realm, level, restore=restore, **kwargs)
 
 class Food(Consumable):
    ITEM_ID = 9
    def use(self, entity):
-      entity.resources.food.increment(self.restore)
-      entity.resources.water.increment(self.restore)
+      entity.resources.food.increment(self.restore.val)
+      entity.resources.water.increment(self.restore.val)
 
 class Potion(Consumable):
    ITEM_ID = 10
    def use(self, entity):
-      entity.resources.health.increment(self.restore)
+      entity.resources.health.increment(self.restore.val)
  
