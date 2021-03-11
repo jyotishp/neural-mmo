@@ -15,6 +15,7 @@ class Pouch:
    def space(self):
       return self.capacity - len(self.items)
 
+   @property
    def packet(self):
       return [item.packet for item in self.items]
 
@@ -57,14 +58,15 @@ class Pouch:
 
 class Loadout:
    def __init__(self, realm, hat=0, top=0, bottom=0, weapon=0):
-      self.hat    = Item.Hat(realm, hat)
-      self.top    = Item.Top(realm, top)
-      self.bottom = Item.Bottom(realm, bottom)
-      self.weapon = Item.Weapon(realm, weapon)
-
-   @property
-   def items(self):
-      return [self.hat, self.top, self.bottom, self.weapon]
+      self.hat = self.top = self.bottom = self.weapon = None
+      if hat != 0:
+         self.hat    = Item.Hat(realm, hat)
+      if top != 0:
+         self.top    = Item.Top(realm, top)
+      if bottom != 0:
+         self.bottom = Item.Bottom(realm, bottom)
+      if weapon != 0:
+         self.weapon = Item.Weapon(realm, weapon)
 
    def __contains__(self, item):
       return (item == self.hat or
@@ -72,6 +74,44 @@ class Loadout:
               item == self.bottom or
               item == self.weapon)
 
+   @property
+   def packet(self):
+      packet = {}
+
+      packet['hat']    = self.hat.packet
+      packet['top']    = self.top.packet
+      packet['bottom'] = self.bottom.packet
+      packet['weapon'] = self.weapon.packet
+
+      return packet
+
+   @property
+   def items(self):
+      items = [self.hat, self.top, self.bottom, self.weapon]
+      return [e for e in items if e is not None]
+
+   @property
+   def levels(self):
+      return [e.level.val for e in self.items]
+
+   @property
+   def defense(self):
+      if not (items := self.items):
+         return 0
+      return round(np.mean([e.defense.val for e in items]))
+
+   @property
+   def offense(self):
+      if not (items := self.items):
+         return 0
+      return round(np.mean([e.offense.val for e in items]))
+
+   @property
+   def level(self):
+      if not (levels := self.levels):
+         return 0
+      return np.mean(levels)
+         
    def remove(self, item):
       if item == self.hat:
          self.hat = None
@@ -83,37 +123,6 @@ class Loadout:
          self.weapon = None
       else:
          system.exit(0, "{} not in inv".format(item))
-
-   @property
-   def defense(self):
-      return round(self.hat.defense
-                      + self.top.defense
-                      + self.bottom.defense)
-
-   @property
-   def levels(self):
-      lvls = []
-      for item in self.items:
-         lvls.append(0 if item is None else item.level.val)
-      return lvls
-
-   @property
-   def level(self):
-      return np.mean(self.levels)
-         
-   @property
-   def offense(self):
-      return round(self.weapon.offense)
-
-   def packet(self):
-      packet = {}
-
-      packet['hat']    = self.hat.packet
-      packet['top']    = self.top.packet
-      packet['bottom'] = self.bottom.packet
-      packet['weapon'] = self.weapon.packet
-
-      return packet
 
 class Inventory:
    def __init__(self, realm, entity):
@@ -135,9 +144,9 @@ class Inventory:
       data                = {}
 
       data['gold']        = self.gold.packet
-      data['ammunition']  = self.ammunition.packet()
-      data['consumables'] = self.consumables.packet()
-      data['loot']        = self.loot.packet()
+      data['ammunition']  = self.ammunition.packet
+      data['consumables'] = self.consumables.packet
+      data['loot']        = self.loot.packet
 
       return data
 
@@ -166,16 +175,20 @@ class Inventory:
 
    def receivePurchase(self, item):
       if isinstance(item, Item.Hat):
-         self.realm.exchange.sell(self.entity, self.equipment.hat)
+         if self.equipment.hat:
+            self.realm.exchange.sell(self.entity, self.equipment.hat)
          self.equipment.hat = item
       elif isinstance(item, Item.Top):
-         self.realm.exchange.sell(self.entity, self.equipment.top)
+         if self.equipment.top:
+            self.realm.exchange.sell(self.entity, self.equipment.top)
          self.equipment.top = item
       elif isinstance(item, Item.Bottom):
-         self.realm.exchange.sell(self.entity, self.equipment.bottom)
+         if self.equipment.bottom:
+            self.realm.exchange.sell(self.entity, self.equipment.bottom)
          self.equipment.bottom = item
       elif isinstance(item, Item.Weapon):
-         self.realm.exchange.sell(self.entity, self.equipment.weapon)
+         if self.equipment.weapon:
+            self.realm.exchange.sell(self.entity, self.equipment.weapon)
          self.equipment.weapon = item
       elif isinstance(item, Item.Ammunition) and self.ammunition.space:
          self.ammunition.add(item)

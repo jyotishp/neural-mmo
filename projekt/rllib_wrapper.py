@@ -273,6 +273,7 @@ class SanePPOTrainer(ppo.PPOTrainer):
 
              training_logs[track][stat] += vals
 
+          print('Save')
           np.save(trainPath, training_logs)
 
           #Representation for CLI

@@ -73,7 +73,7 @@ def times(stats):
    return lines
 
 def line(title=None, keys=[], vals=[],
-      titleFmt='{:<12}', keyFmt='{}', valFmt='{:8.1f}'):
+      titleFmt='{:<15}', keyFmt='{}', valFmt='{:8.1f}'):
    '''Format a line of stats with vertical separators'''
 
    assert len(keys) == len(vals), 'Unequal number of keys and values'

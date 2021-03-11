@@ -93,14 +93,9 @@ class MarginPlot(Plot):
  
 class Training(Plot):
    def preprocess(self, data, key, color, idx, w=20):
-      mean                   = np.array(data['Mean'])
-      std                    = np.array(data['Std'])
-
       preprocessed           = {}
       preprocessed['x']      = data['x']
-      preprocessed['smooth'] = mean
-      preprocessed['lower']  = mean - std
-      preprocessed['upper']  = mean + std
+      preprocessed['smooth'] = np.array(data['Mean'])
 
       return preprocessed
 

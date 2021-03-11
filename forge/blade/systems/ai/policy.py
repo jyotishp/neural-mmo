@@ -129,9 +129,11 @@ def baseline(realm, entity, explore, forage, combat):
       elif entity.skills.style == Action.Mage and Item.Shard not in ammunition:
          realm.exchange.buy(entity, Item.Shard, 0, 99)
 
-      equipTypes  = [type(e) for e in entity.inventory.equipment.items]
-      equipLevels = entity.inventory.equipment.levels
-      idx         = np.random.choice(np.flatnonzero(np.array(equipLevels) == np.max(equipLevels)))
+      items       = entity.inventory.equipment
+      equipTypes  = [Item.Hat, Item.Top, Item.Bottom, Item.Weapon]
+      equipment   = [items.hat, items.top, items.bottom, items.weapon]
+      equipLevels = [e.level.val if e is not None else 0 for e in equipment]
+      idx = np.random.choice(np.flatnonzero(np.array(equipLevels) == np.max(equipLevels)))
       realm.exchange.buy(entity, equipTypes[idx], equipLevels[idx], 99)
 
    #Forage if low on resources

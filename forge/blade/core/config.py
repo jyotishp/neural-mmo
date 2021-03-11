@@ -179,7 +179,7 @@ class Config(Template):
    VIS_BORDER_HEIGHT    = 60
    '''Vertical padding per figure side (pixels)'''
 
-   VIS_LEGEND_WIDTH     = 109
+   VIS_LEGEND_WIDTH     = 129
    '''Width of legend label before offset'''
    
    VIS_LEGEND_OFFSET    = 71 

@@ -242,7 +242,7 @@ class Env:
       blob.log(ent.history.timeAlive.val)
 
       blob = quill.register('Basic Skills', self.realm.tick,
-            quill.HISTOGRAM, quill.STACKED_AREA, quill.STATS, quill.RADAR)
+            quill.HISTOGRAM, quill.STACKED_AREA, quill.STATS)
       blob.log(ent.skills.water.level,        'Water')
       blob.log(ent.skills.food.level,         'Food')
 
@@ -262,16 +262,8 @@ class Env:
 
       blob = quill.register('Equipment', self.realm.tick,
             quill.HISTOGRAM, quill.SCATTER)
-      blob.log(ent.inventory.equipment.hat.level.val,    'Hat')
-      blob.log(ent.inventory.equipment.top.level.val,    'Top')
-      blob.log(ent.inventory.equipment.bottom.level.val, 'Bottom')
-      blob.log(ent.inventory.equipment.weapon.level.val, 'Weapon')
-
-      #blob = quill.register('Attack Charges', self.realm.tick,
-      #      quill.HISTOGRAM, quill.STACKED_AREA, quill.STATS, quill.RADAR)
-      #blob.log(ent.inventory.charges.scraps.heldOrUsed,   'Scraps')
-      #blob.log(ent.inventory.charges.shavings.heldOrUsed, 'Shavings')
-      #blob.log(ent.inventory.charges.shards.heldOrUsed,   'Shards')
+      blob.log(ent.inventory.equipment.offense, 'Offense')
+      blob.log(ent.inventory.equipment.defense, 'Defense')
 
       blob = quill.register('Trades', self.realm.tick,
             quill.HISTOGRAM, quill.SCATTER)

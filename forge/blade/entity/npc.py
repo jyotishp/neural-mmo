@@ -2,6 +2,7 @@ from pdb import set_trace as T
 import numpy as np
 
 import random
+from forge.blade import item as Item
 from forge.blade.entity import entity, Player
 from forge.blade.systems import combat, ai, combat, skill
 from forge.blade.lib.enums import Neon
@@ -52,10 +53,10 @@ class NPC(entity.Entity):
          (Action.Melee, Action.Range, Action.Mage))
 
       #Set equipment levels
-      ent.inventory.equipment.hat.level.update(NPC.gearLevel(defense))
-      ent.inventory.equipment.top.level.update(NPC.gearLevel(defense))
-      ent.inventory.equipment.bottom.level.update(NPC.gearLevel(defense))
-      ent.inventory.equipment.weapon.level.update(NPC.gearLevel(defense))
+      ent.inventory.equipment.hat    = Item.Hat(realm, NPC.gearLevel(defense))
+      ent.inventory.equipment.top    = Item.Top(realm, NPC.gearLevel(defense))
+      ent.inventory.equipment.bottom = Item.Bottom(realm, NPC.gearLevel(defense))
+      ent.inventory.equipment.weapon = Item.Weapon(realm, NPC.gearLevel(defense))
       ent.inventory.gold.quantity.update(combat.level(ent.skills))
 
       return ent
