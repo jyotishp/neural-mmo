@@ -89,7 +89,7 @@ class HarvestSkill(NonCombatSkill):
    def processDrops(self, realm, entity, dropTable):
       drops = dropTable.roll(realm, self.level)
       entity.inventory.receiveLoot(drops)
-      self.exp += 10 * self.config.XP_SCALE
+      self.exp += 10 * self.config.PROGRESSION_BASE_XP_SCALE
         
    def harvest(self, realm, entity, matl, deplete=True):
       r, c = entity.pos
@@ -169,11 +169,14 @@ class Combat(SkillGroup):
                  self.mage.level)
 
    def applyDamage(self, dmg, style):
-      config = self.config
-      scale = config.XP_SCALE
+      if not self.config.game_system_enabled('Progression'):
+         return
 
-      skill = self.__dict__[style]
-      skill.exp += scale * dmg * config.COMBAT_XP_SCALE
+      config     = self.config
+      scale      = config.PROGRESSION_BASE_XP_SCALE
+
+      skill      = self.__dict__[style]
+      skill.exp += scale * dmg * config.PROGRESSION_COMBAT_XP_SCALE
 
    def receiveDamage(self, dmg):
       pass
@@ -186,37 +189,89 @@ class Melee(CombatSkill): pass
 class Range(CombatSkill): pass
 class Mage(CombatSkill): pass
 
+### Individual Skills ###
+class CombatSkill(Skill): pass
+
+class Constitution(CombatSkill):
+   def __init__(self, skillGroup):
+      super().__init__(skillGroup)
+      self.setExpByLevel(self.config.BASE_HEALTH)
+
+   def update(self, realm, entity):
+      health = entity.resources.health
+      food   = entity.resources.food
+      water  = entity.resources.water
+      config = self.config
+
+      if not config.game_system_enabled('Resource'):
+         health.increment(1)
+         return
+
+      # Heal if above fractional resource threshold
+      regen       = config.RESOURCE_HEALTH_REGEN_THRESHOLD
+      foodThresh  = food > regen * entity.skills.hunting.level
+      waterThresh = water > regen * entity.skills.fishing.level
+
+      if foodThresh and waterThresh:
+         restore = config.RESOURCE_HEALTH_RESTORE_FRACTION
+         restore = np.floor(restore * self.level)
+         health.increment(restore)
+
+      if food.empty:
+         health.decrement(1)
+
+      if water.empty:
+         health.decrement(1)
+
 class Water(HarvestSkill):
    def __init__(self, skillGroup):
       super().__init__(skillGroup)
-      self.setExpByLevel(self.config.RESOURCE)
+      config, level = self.config, 1
+      if config.game_system_enabled('Progression'):
+         level = config.PROGRESSION_BASE_RESOURCE
+      elif config.game_system_enabled('Resource'):
+         level = config.RESOURCE_BASE_RESOURCE
+
+      self.setExpByLevel(level)
 
    def update(self, realm, entity):
+      if not self.config.game_system_enabled('Resource'):
+         return
+
       water = entity.resources.water
-      if entity.status.immune <= 0:
-         water.decrement(1)
+      water.decrement(1)
 
       tiles = realm.map.tiles
       if not self.harvestAdjacent(realm, entity, material.Water, deplete=False):
          return
 
-      restore = np.floor(self.level * self.config.RESOURCE_RESTORE)
+      restore = self.config.RESOURCE_HARVEST_RESTORE_FRACTION
+      restore = np.floor(restore * self.level)
       water.increment(restore)
 
 class Food(HarvestSkill):
    def __init__(self, skillGroup):
       super().__init__(skillGroup)
-      self.setExpByLevel(self.config.RESOURCE)
+      config, level = self.config, 1
+      if config.game_system_enabled('Progression'):
+         level = config.PROGRESSION_BASE_RESOURCE
+      elif config.game_system_enabled('Resource'):
+         level = config.RESOURCE_BASE_RESOURCE
+
+      self.setExpByLevel(level)
 
    def update(self, realm, entity):
+      if not self.config.game_system_enabled('Resource'):
+         return
+
       food = entity.resources.food
-      if entity.status.immune <= 0:
-         food.decrement(1)
+      food.decrement(1)
 
       if not self.harvest(realm, entity, material.Forest):
          return
 
-      restore = np.floor(self.level * self.config.RESOURCE_RESTORE)
+      restore = self.config.RESOURCE_HARVEST_RESTORE_FRACTION
+      restore = np.floor(restore * self.level)
       food.increment(restore)
 
 class Fishing(HarvestSkill):
@@ -238,3 +293,4 @@ class Carving(HarvestSkill):
 class Alchemy(HarvestSkill):
    def update(self, realm, entity):
       self.harvest(realm, entity, material.Crystal)
+

@@ -44,6 +44,7 @@ def hostile(realm, entity):
 
    return actions
 
+'''
 def forage(realm, entity, explore=True, forage=behavior.forageDijkstra):
    return baseline(realm, entity, explore, forage, combat=False)
 
@@ -162,3 +163,4 @@ def baseline(realm, entity, explore, forage, combat):
 
    return actions
 
+'''

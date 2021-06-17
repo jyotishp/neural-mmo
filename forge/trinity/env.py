@@ -36,6 +36,11 @@ class Env:
       self.config    = config
       self.overlay   = None
 
+      self.dead      = []
+      self.spawned   = 0
+
+      #self.steps = 0
+
    ############################################################################
    ### Core API
    def reset(self, idx=None, step=True):
@@ -66,7 +71,7 @@ class Env:
       self.quill = log.Quill(self.realm.identify)
       
       if idx is None:
-         idx = np.random.randint(self.config.N_TRAIN_MAPS) + 1
+         idx = np.random.randint(self.config.TERRAIN_TRAIN_MAPS) + 1
 
       self.worldIdx = idx
       self.realm.reset(idx)
@@ -192,16 +197,20 @@ class Env:
                   actions[entID][atn][arg] = obj
                
       #Step: Realm, Observations, Logs
-      dead = self.realm.step(actions)
+      self.dead = self.realm.step(actions)
       obs, rewards, dones, self.raw = {}, {}, {}, {}
       for entID, ent in self.realm.players.items():
          ob             = self.realm.dataframe.get(ent)
          obs[entID]     = ob
+         self.dummy_ob  = ob
 
-         rewards[entID] = self.reward(entID)
+         rewards[entID] = self.reward(ent)
          dones[entID]   = False
 
-      for entID, ent in dead.items():
+      #self.steps += len(self.realm.players.items())
+      #print('World {} Tick {} Steps {}'.format(self.worldIdx, self.realm.tick, self.steps))
+
+      for entID, ent in self.dead.items():
          self.log(ent)
 
       #TODO: Figure out how to integrate this into realm
@@ -211,10 +220,10 @@ class Env:
       if omitDead:
          return obs, rewards, dones, {}
 
-      for entID, ent in dead.items():
+      for entID, ent in self.dead.items():
          rewards[ent.entID] = self.reward(ent)
          dones[ent.entID]   = True
-         obs[ent.entID]     = ob
+         obs[ent.entID]     = self.dummy_ob
 
       return obs, rewards, dones, {}
 
@@ -290,6 +299,7 @@ class Env:
             quill.HISTOGRAM, quill.SCATTER)
       blob.log(ent.history.exploration)
 
+      '''
       quill.stat('Population',      self.realm.population)
       quill.stat('Lifetime',        ent.history.timeAlive.val)
       quill.stat('Basic Skills',    ent.skills.basicLevel)
@@ -298,6 +308,14 @@ class Env:
       quill.stat('Equipment',       ent.inventory.equipment.level)
       quill.stat('Exchange',        ent.buys + ent.sells)
       quill.stat('Exploration',     ent.history.exploration)
+      '''
+
+      quill.stat('Lifetime',  ent.history.timeAlive.val)
+
+      if self.config.game_system_enabled('Achievement'):
+         quill.stat('Achievement', ent.achievements.score())
+         for name, stat in ent.achievements.stats:
+            quill.stat(name, stat)
 
    def terminal(self):
       '''Logs currently alive agents and returns all collected logs
@@ -360,8 +378,10 @@ class Env:
          particular populations based on the current game state -- for example,
          current population sizes or performance.'''
 
-      pop = np.random.randint(self.config.NPOP)
-      return pop, 'Neural_'
+      popSize = self.config.NENT / self.config.NPOP
+      pop     = (self.spawned // popSize) % self.config.NPOP
+      self.spawned += 1
+      return int(pop), 'Neural_'
 
    ############################################################################
    ### Client data
@@ -375,7 +395,7 @@ class Env:
       packet = {
             'config': self.config,
             'pos': self.overlayPos,
-            'wilderness': combat.wilderness(self.config, self.overlayPos)
+            'wilderness': 0
             }
 
       packet = {**self.realm.packet(), **packet}

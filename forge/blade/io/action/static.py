@@ -18,6 +18,7 @@ class Action(Node):
    @staticproperty
    def edges():
       return [Move, Attack, Buy, InventoryAction]
+      #return [Move, Attack]
 
    @staticproperty
    def n():
@@ -51,7 +52,7 @@ class Move(Node):
       entity.history.lastPos = (r, c)
       rDelta, cDelta = direction.delta
       rNew, cNew = r+rDelta, c+cDelta
-
+      
       #One agent per cell
       tile = env.map.tiles[rNew, cNew] 
       if tile.occupied and not tile.lava:
@@ -124,15 +125,7 @@ class Attack(Node):
       for r in range(R-N, R+N+1):
          for c in range(C-N, C+N+1):
             for e in stim[r, c].ents.values():
-               if not config.WILDERNESS:
-                  rets.add(e)
-                  continue
-
-               minWilderness = min(entity.status.wilderness.val, e.status.wilderness.val)
-               selfLevel     = combat.level(entity.skills)
-               targLevel     = combat.level(e.skills)
-               if abs(selfLevel - targLevel) <= minWilderness:
-                  rets.add(e)
+               rets.add(e)
 
       rets = list(rets)
       return rets
@@ -146,18 +139,12 @@ class Attack(Node):
       if targ is None or entity.entID == targ.entID:
          return
 
+      if entity.isPlayer and not env.config.game_system_enabled('Combat'):
+         return 
+
       #Can't attack if either party is immune
-      if entity.status.immune > 0 or targ.status.immune > 0:
-         return
-
-      #Check wilderness level
-      wilderness = min(entity.status.wilderness, targ.status.wilderness)
-      selfLevel  = combat.level(entity.skills)
-      targLevel  = combat.level(targ.skills)
-
-      if (env.config.WILDERNESS and abs(selfLevel - targLevel) > wilderness
-            and entity.isPlayer and targ.isPlayer):
-         return
+      #if entity.status.immune > 0 or targ.status.immune > 0:
+      #   return
 
       #Check attack range
       rng     = style.attackRange(env.config)
@@ -174,10 +161,11 @@ class Attack(Node):
       entity.history.attack['target'] = targ.entID
       entity.history.attack['style'] = style.__name__
       targ.attacker = entity
+      targ.attackerID.update(entity.entID)
 
       dmg = combat.attack(entity, targ, style.skill)
       if style.freeze and dmg > 0:
-         targ.status.freeze.update(env.config.FREEZE_TIME)
+         targ.status.freeze.update(env.config.COMBAT_FREEZE_TIME)
 
       return dmg
 
@@ -213,7 +201,7 @@ class Melee(Node):
    freeze=False
 
    def attackRange(config):
-      return config.MELEE_RANGE
+      return config.COMBAT_MELEE_REACH
 
    def skill(entity):
       return entity.skills.melee
@@ -224,7 +212,7 @@ class Range(Node):
    freeze=False
 
    def attackRange(config):
-      return config.RANGE_RANGE
+      return config.COMBAT_RANGE_REACH
 
    def skill(entity):
       return entity.skills.range
@@ -235,7 +223,7 @@ class Mage(Node):
    freeze=True
 
    def attackRange(config):
-      return config.MAGE_RANGE
+      return config.COMBAT_MAGE_REACH
 
    def skill(entity):
       return entity.skills.mage
@@ -334,12 +322,18 @@ class Sell(Node):
 class Use(Node):
    nodeType = NodeType.ACTION
 
-class Message:
-   pass
-
 class Reproduce:
    pass
 
+#TODO: Add communication
+class Message:
+   pass
+
+#TODO: Add trade
+class Exchange:
+   pass
+
+#TODO: Solve AGI
 class BecomeSkynet:
    pass
 
