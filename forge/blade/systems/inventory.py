@@ -68,6 +68,8 @@ class Loadout:
       if weapon != 0:
          self.weapon = Item.Weapon(realm, weapon)
 
+      self.itm    = Item.Hat(realm, 0)
+
    def __contains__(self, item):
       return (item == self.hat or
               item == self.top or
@@ -78,10 +80,17 @@ class Loadout:
    def packet(self):
       packet = {}
 
-      packet['hat']    = self.hat.packet
-      packet['top']    = self.top.packet
-      packet['bottom'] = self.bottom.packet
-      packet['weapon'] = self.weapon.packet
+      for equip in ['hat', 'top', 'bottom', 'weapon']:
+          itm = getattr(self, equip)
+          if itm:
+              packet[equip] = itm.packet
+          else:
+              packet[equip] = self.itm.packet
+         
+      #packet['hat']    = self.hat.packet
+      #packet['top']    = self.top.packet
+      #packet['bottom'] = self.bottom.packet
+      #packet['weapon'] = self.weapon.packet
 
       return packet
 
