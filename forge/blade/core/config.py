@@ -489,6 +489,8 @@ class NPC:
    '''Level range for NPC spawns'''
 
 class Achievement:
+   '''Achievement Reward System'''
+
    @property #Reserved flag
    def Achievement(self):
       return True
