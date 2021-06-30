@@ -156,6 +156,11 @@ class Anvil():
       '''Training/Evaluation results Web dashboard'''
       BokehServer(self.config)
 
+   def download_client(self, **kwargs):
+      '''Downloads Neural MMO client'''
+      from neural_mmo.projekt.embyr_downloader import setup_neural_mmo_client
+
+      setup_neural_mmo_client()
 
 def main():
    def Display(lines, out):
